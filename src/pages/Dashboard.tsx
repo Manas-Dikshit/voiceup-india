@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -135,14 +136,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">VoiceUp</h1>
-          </div>
-          <div className="flex items-center gap-4">
+      <Header
+        right={
+          <>
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -154,9 +150,9 @@ const Dashboard = () => {
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="container mx-auto px-4 py-8">
         {/* Stats Cards */}

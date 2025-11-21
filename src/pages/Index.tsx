@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,20 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header
+        right={
+          <>
+            <div className="hidden sm:block">
+              <button
+                className="text-sm font-medium text-foreground hover:underline"
+                onClick={() => navigate("/auth")}
+              >
+                Get Started
+              </button>
+            </div>
+          </>
+        }
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-info to-accent py-20 px-4">
         <div className="container mx-auto text-center">
