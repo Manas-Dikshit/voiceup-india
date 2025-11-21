@@ -123,3 +123,25 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Glassmorphism navbar utility */
+  .glass-nav {
+    background-color: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  /* Dark mode variant for glass-nav */
+  .dark .glass-nav {
+    background-color: rgba(3, 7, 18, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Utility to ensure page content is not hidden under the fixed header.
+     Use this spacer directly after the header or rely on the utility class. */
+  .nav-spacer {
+    height: 64px; /* matches header height (py-4 + font size) */
+  }
+}
