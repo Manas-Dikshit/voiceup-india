@@ -97,6 +97,33 @@ const Dashboard = () => {
 
   useEffect(() => {
     checkAuth();
+
+    const problemsChannel = supabase
+      .channel("problems-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "problems" },
+        () => {
+          loadProblems();
+        }
+      )
+      .subscribe();
+
+    const votesChannel = supabase
+      .channel("votes-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "votes" },
+        () => {
+          loadProblems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(problemsChannel);
+      supabase.removeChannel(votesChannel);
+    };
   }, []);
 
   const checkAuth = async () => {
