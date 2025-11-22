@@ -26,16 +26,29 @@ const categories = [
   { value: "other", label: "Other" },
 ];
 
+type FormData = {
+  title: string;
+  description: string;
+  category: string;
+  pincode: string;
+  latitude: number;
+  longitude: number;
+};
+
 const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
+  const BUCKET_NAME = import.meta.env.VITE_PROBLEM_BUCKET ?? "problem-attachments";
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: "",
     description: "",
     category: "",
+    pincode: "",
     latitude: 0,
     longitude: 0,
   });
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [areaName, setAreaName] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
   const getLocation = () => {
@@ -86,13 +99,42 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
         throw new Error("You must be logged in to report a problem");
       }
 
-      const { error } = await supabase.from("problems").insert([{
+      if (!attachment) {
+        throw new Error("Please attach at least one file. Attachments are required.");
+      }
+
+      // Upload attachment to Supabase Storage
+      const filePath = `${session.user.id}/${Date.now()}_${attachment.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, attachment as File);
+
+      if (uploadError) {
+        // Provide clearer guidance when the bucket doesn't exist or permission denied
+        const lower = String(uploadError.message || "").toLowerCase();
+        if (lower.includes("not found") || lower.includes("does not exist") || lower.includes("bucket")) {
+          throw new Error(`Storage bucket '${BUCKET_NAME}' not found. Create it in your Supabase project dashboard or set VITE_PROBLEM_BUCKET to an existing bucket name.`);
+        }
+        throw uploadError;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(filePath);
+
+      const mediaUrl = publicUrlData.publicUrl;
+
+      // Append pincode/area info to description (DB doesn't currently have dedicated columns for them)
+      const fullDescription = `${formData.description}${formData.pincode ? `\n\nPincode: ${formData.pincode}` : ""}${areaName ? `\nArea: ${areaName}` : ""}`;
+
+      const { error } = await supabase.from("problems").insert([{ 
         user_id: session.user.id,
         title: formData.title,
-        description: formData.description,
-        category: formData.category as any,
+        description: fullDescription,
+        category: formData.category,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        media_url: mediaUrl,
       }]);
 
       if (error) throw error;
@@ -103,10 +145,11 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       });
 
       onSuccess();
-    } catch (error: any) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -203,6 +246,70 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             <MapPin className="h-4 w-4 mr-2" />
             {locationLoading ? "Detecting location..." : "Use Current Location"}
           </Button>
+
+          <div className="space-y-2">
+            <Label htmlFor="pincode">Pincode (Postal Code)</Label>
+            <Input
+              id="pincode"
+              placeholder="Enter 6-digit pincode"
+              maxLength={6}
+              value={formData.pincode}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 6);
+                setFormData({ ...formData, pincode: val });
+                setAreaName(null);
+              }}
+              onBlur={async () => {
+                const pin = formData.pincode;
+                if (pin && pin.length === 6) {
+                  try {
+                    const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+                    const json = await res.json();
+                    if (Array.isArray(json) && json[0].Status === "Success") {
+                      const postOffices = json[0].PostOffice;
+                      if (postOffices && postOffices.length > 0) {
+                        setAreaName(postOffices[0].Name + ", " + postOffices[0].District);
+                      } else {
+                        setAreaName("Unknown area");
+                      }
+                    } else {
+                      setAreaName("Unknown area");
+                    }
+                  } catch (err) {
+                    console.error("Pincode lookup failed", err);
+                    setAreaName("Lookup failed");
+                  }
+                }
+              }}
+            />
+            {areaName && (
+              <div className="text-sm text-muted-foreground">Area: {areaName}</div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="attachment">Attachment *</Label>
+            <div className="flex items-center gap-3">
+              <input
+                id="attachment"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files && e.target.files[0];
+                  setAttachment(file || null);
+                }}
+                required
+              />
+              {attachment && (
+                <div className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  <span className="text-sm">{attachment.name}</span>
+                  <button type="button" onClick={() => setAttachment(null)} title="Remove">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
