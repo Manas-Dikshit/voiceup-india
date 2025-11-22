@@ -45,6 +45,7 @@ All colors MUST be HSL.
     /* Custom colors for VoiceUp */
     --hero-gradient-start: 215 85% 25%;
     --hero-gradient-end: 195 85% 45%;
+    --glass: 0 0% 100% / 0.6;
     
     --success: 140 60% 45%;
     --success-foreground: 0 0% 100%;
@@ -68,41 +69,30 @@ All colors MUST be HSL.
   .dark {
     --background: 215 30% 8%;
     --foreground: 0 0% 95%;
-
-    --card: 215 25% 12%;
+    --glass: 215 25% 12% / 0.5;
+    --card: 215 25% 12% / 0.5;
     --card-foreground: 0 0% 95%;
-
-    --popover: 215 25% 12%;
+    --popover: 215 25% 12% / 0.8;
     --popover-foreground: 0 0% 95%;
-
     --primary: 215 75% 55%;
     --primary-foreground: 0 0% 100%;
-
     --secondary: 25 90% 60%;
     --secondary-foreground: 0 0% 100%;
-
     --muted: 215 25% 18%;
     --muted-foreground: 215 10% 65%;
-
     --accent: 140 55% 50%;
     --accent-foreground: 0 0% 100%;
-
     --destructive: 0 75% 55%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 215 25% 18%;
     --input: 215 25% 18%;
     --ring: 215 75% 55%;
-    
     --success: 140 55% 50%;
     --success-foreground: 0 0% 100%;
-    
     --warning: 45 90% 60%;
     --warning-foreground: 215 30% 8%;
-    
     --info: 210 75% 60%;
     --info-foreground: 0 0% 100%;
-
     --sidebar-background: 215 30% 10%;
     --sidebar-foreground: 0 0% 90%;
     --sidebar-primary: 215 75% 55%;
@@ -125,6 +115,13 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  /* Glassmorphism card utility */
+  .glass {
+    background-color: hsl(var(--glass));
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid hsl(var(--border) / 0.2);
+  }
   /* Glassmorphism navbar utility */
   .glass-nav {
     background-color: rgba(255, 255, 255, 0.6);

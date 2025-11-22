@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Award, TrendingUp, LogOut } from "lucide-react";
 import ProblemCard from "@/components/ProblemCard";
 import ReportProblem from "@/components/ReportProblem";
+import { useUserLocation } from "@/hooks/useUserLocation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Profile {
   id: string;
@@ -29,13 +31,69 @@ interface Problem {
   longitude: number;
 }
 
+const fetchProblems = async () => {
+  const { data, error } = await supabase
+    .from("problems")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
+const fetchNearbyProblems = async (latitude: number, longitude: number) => {
+  const { data, error } = await supabase.rpc('nearby_problems', {
+    lat: latitude,
+    long: longitude
+  });
+  if (error) throw new Error(error.message);
+  const rows = (data || []) as any[];
+
+  // Normalize latitude/longitude and votes_count on returned rows in case the DB returns a 'location' geography column
+  return rows.map((r) => {
+    const out: any = { ...r };
+    // ensure numeric votes_count
+    out.votes_count = out.votes_count !== undefined && out.votes_count !== null ? Number(out.votes_count) : 0;
+
+    if ((out.latitude === null || out.latitude === undefined) && out.location) {
+      const loc = out.location;
+      if (loc && typeof loc === 'object' && Array.isArray(loc.coordinates)) {
+        // GeoJSON-like: { type: 'Point', coordinates: [long, lat] }
+        out.longitude = Number(loc.coordinates[0]);
+        out.latitude = Number(loc.coordinates[1]);
+      } else if (typeof loc === 'string' && loc.startsWith('POINT')) {
+        // WKT: POINT(long lat)
+        const inside = loc.replace(/POINT\(|\)/g, '').trim();
+        const [lngStr, latStr] = inside.split(' ').filter(Boolean);
+        out.longitude = Number(lngStr);
+        out.latitude = Number(latStr);
+      }
+    }
+
+    return out;
+  });
+};
+
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [problems, setProblems] = useState<Problem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
+  const { position: location, error: locationError } = useUserLocation();
+  const queryClient = useQueryClient();
+
+  const { data: problems = [], isLoading: problemsLoading } = useQuery<Problem[]>({
+    queryKey: ['problems'],
+    queryFn: fetchProblems
+  });
+
+  const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery<Problem[]>({
+    queryKey: ['nearbyProblems', location?.latitude, location?.longitude],
+    queryFn: () => fetchNearbyProblems(location!.latitude, location!.longitude),
+    enabled: !!location,
+  });
 
   useEffect(() => {
     checkAuth();
@@ -50,7 +108,6 @@ const Dashboard = () => {
     }
 
     await loadProfile(session.user.id);
-    await loadProblems();
     setLoading(false);
   };
 
@@ -69,21 +126,6 @@ const Dashboard = () => {
     setProfile(data);
   };
 
-  const loadProblems = async () => {
-    const { data, error } = await supabase
-      .from("problems")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (error) {
-      console.error("Error loading problems:", error);
-      return;
-    }
-
-    setProblems(data || []);
-  };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast({
@@ -92,38 +134,14 @@ const Dashboard = () => {
     });
     navigate("/");
   };
+  
+  const handleSuccess = () => {
+    setShowReportForm(false);
+    queryClient.invalidateQueries({ queryKey: ['problems'] });
+    queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
+  }
 
-  const handleVote = async (problemId: string, voteType: "upvote" | "downvote") => {
-    if (!profile) return;
-
-    try {
-      const { error } = await supabase
-        .from("votes")
-        .upsert({
-          user_id: profile.id,
-          votable_type: "problem",
-          votable_id: problemId,
-          vote_type: voteType,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Vote recorded",
-        description: `Your ${voteType} has been recorded.`,
-      });
-
-      await loadProblems();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (loading) {
+  if (loading || problemsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -230,7 +248,6 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onVote={handleVote}
                   />
                 ))
               )}
@@ -238,11 +255,45 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="nearby" className="mt-6">
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Enable location services to see nearby problems
-              </CardContent>
-            </Card>
+            {locationError && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Could not get your location. Please enable location services in your browser.
+                </CardContent>
+              </Card>
+            )}
+            {!location && !locationError && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Getting your location...
+                </CardContent>
+              </Card>
+            )}
+            {location && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  No problems found nearby.
+                </CardContent>
+              </Card>
+            )}
+             {nearbyProblemsLoading && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Loading nearby problems...
+                </CardContent>
+              </Card>
+            )}
+            {location && nearbyProblems.length > 0 && (
+              <div className="space-y-4">
+                {nearbyProblems.map((problem) => (
+                  <ProblemCard
+                    key={problem.id}
+                    problem={problem}
+                  />
+                ))
+              }
+            </div>
+            )}
           </TabsContent>
 
           <TabsContent value="trending" className="mt-6">
@@ -254,9 +305,9 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onVote={handleVote}
                   />
-                ))}
+                ))
+              }
             </div>
           </TabsContent>
         </Tabs>
@@ -266,10 +317,7 @@ const Dashboard = () => {
       {showReportForm && (
         <ReportProblem
           onClose={() => setShowReportForm(false)}
-          onSuccess={() => {
-            setShowReportForm(false);
-            loadProblems();
-          }}
+          onSuccess={handleSuccess}
         />
       )}
     </div>
