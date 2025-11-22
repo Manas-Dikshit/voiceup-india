@@ -38,9 +38,8 @@ const Auth = () => {
 
       toast({
         title: "Success!",
-        description: "Account created successfully. Welcome to VoiceUp!",
+        description: "Please check your email to confirm your account.",
       });
-      navigate("/dashboard");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -74,11 +73,19 @@ const Auth = () => {
       });
       navigate("/dashboard");
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error.message === "Email not confirmed") {
+        toast({
+          title: "Email not confirmed",
+          description: "Please check your email for a confirmation link.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }

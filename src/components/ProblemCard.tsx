@@ -1,7 +1,14 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Calendar } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface Problem {
   id: string;
@@ -21,24 +28,24 @@ interface ProblemCardProps {
 }
 
 const categoryColors: Record<string, string> = {
-  roads: "bg-info/10 text-info",
-  water: "bg-blue-500/10 text-blue-500",
-  electricity: "bg-yellow-500/10 text-yellow-500",
-  sanitation: "bg-green-500/10 text-green-500",
-  education: "bg-purple-500/10 text-purple-500",
-  healthcare: "bg-red-500/10 text-red-500",
-  pollution: "bg-gray-500/10 text-gray-500",
-  safety: "bg-orange-500/10 text-orange-500",
+  roads: "bg-sky-500/10 text-sky-600",
+  water: "bg-blue-500/10 text-blue-600",
+  electricity: "bg-yellow-500/10 text-yellow-600",
+  sanitation: "bg-green-500/10 text-green-600",
+  education: "bg-purple-500/10 text-purple-600",
+  healthcare: "bg-rose-500/10 text-rose-600",
+  pollution: "bg-gray-500/10 text-gray-600",
+  safety: "bg-orange-500/10 text-orange-600",
   other: "bg-muted text-muted-foreground",
 };
 
 const statusColors: Record<string, string> = {
-  reported: "bg-warning/10 text-warning",
-  under_review: "bg-info/10 text-info",
-  approved: "bg-success/10 text-success",
-  in_progress: "bg-primary/10 text-primary",
-  completed: "bg-accent/10 text-accent",
-  rejected: "bg-destructive/10 text-destructive",
+  reported: "bg-amber-500/10 text-amber-600",
+  under_review: "bg-blue-500/10 text-blue-600",
+  approved: "bg-emerald-500/10 text-emerald-600",
+  in_progress: "bg-indigo-500/10 text-indigo-600",
+  completed: "bg-teal-500/10 text-teal-600",
+  rejected: "bg-rose-500/10 text-rose-600",
 };
 
 const ProblemCard = ({ problem, onVote }: ProblemCardProps) => {
@@ -52,67 +59,106 @@ const ProblemCard = ({ problem, onVote }: ProblemCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground mb-2">{problem.title}</h3>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className={categoryColors[problem.category] || categoryColors.other}>
-                {problem.category}
-              </Badge>
-              <Badge variant="outline" className={statusColors[problem.status]}>
-                {problem.status.replace("_", " ")}
-              </Badge>
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+      className="group"
+    >
+      <Card
+        className="
+          hover:shadow-xl transition-all duration-300
+          bg-gradient-to-br from-background via-background/95 to-background/80
+          border border-border/60 backdrop-blur-sm
+          rounded-2xl overflow-hidden
+        "
+      >
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
+                {problem.title}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant="secondary"
+                  className={categoryColors[problem.category] || categoryColors.other}
+                >
+                  {problem.category}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={statusColors[problem.status] || statusColors.reported}
+                >
+                  {problem.status.replace("_", " ")}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-3xl font-bold text-foreground">
+                {problem.votes_count}
+              </div>
+              <div className="text-xs text-muted-foreground">votes</div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-foreground">{problem.votes_count}</div>
-            <div className="text-xs text-muted-foreground">votes</div>
-          </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="pb-3">
-        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{problem.description}</p>
-        
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span>
-              {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            <span>{formatDate(problem.created_at)}</span>
-          </div>
-        </div>
-      </CardContent>
+        <CardContent className="pb-3">
+          <p className="text-muted-foreground text-sm line-clamp-3 mb-3">
+            {problem.description}
+          </p>
 
-      <CardFooter className="pt-3 border-t">
-        <div className="flex items-center gap-2 w-full">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => onVote(problem.id, "upvote")}
-          >
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            Upvote
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1"
-            onClick={() => onVote(problem.id, "downvote")}
-          >
-            <ThumbsDown className="h-4 w-4 mr-2" />
-            Downvote
-          </Button>
-        </div>
-      </CardFooter>
-    </Card>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-primary/70" />
+              <span>
+                {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3 text-primary/70" />
+              <span>{formatDate(problem.created_at)}</span>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="pt-3 border-t border-border/60">
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+            <motion.div whileTap={{ scale: 0.95 }} className="flex-1 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                className="
+                  w-full bg-primary/5 hover:bg-primary/10
+                  text-primary border-primary/20
+                  transition-colors duration-200
+                "
+                onClick={() => onVote(problem.id, "upvote")}
+              >
+                <ThumbsUp className="h-4 w-4 mr-2" />
+                Upvote
+              </Button>
+            </motion.div>
+
+            <motion.div whileTap={{ scale: 0.95 }} className="flex-1 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                className="
+                  w-full bg-destructive/5 hover:bg-destructive/10
+                  text-destructive border-destructive/20
+                  transition-colors duration-200
+                "
+                onClick={() => onVote(problem.id, "downvote")}
+              >
+                <ThumbsDown className="h-4 w-4 mr-2" />
+                Downvote
+              </Button>
+            </motion.div>
+          </div>
+        </CardFooter>
+      </Card>
+    </motion.div>
   );
 };
 

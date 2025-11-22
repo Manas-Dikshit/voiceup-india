@@ -38,10 +38,6 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   });
   const [locationLoading, setLocationLoading] = useState(false);
 
-  useEffect(() => {
-    getLocation();
-  }, []);
-
   const getLocation = () => {
     setLocationLoading(true);
     if ("geolocation" in navigator) {
@@ -60,27 +56,23 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
         },
         (error) => {
           console.error("Error getting location:", error);
-          // Default to New Delhi coordinates
-          setFormData((prev) => ({
-            ...prev,
-            latitude: 28.6139,
-            longitude: 77.209,
-          }));
           setLocationLoading(false);
           toast({
             title: "Location unavailable",
-            description: "Using default location. You can update coordinates manually.",
+            description: "Could not get your location. Please ensure you've granted location permissions and are on a secure (https) connection. You can also enter coordinates manually.",
             variant: "destructive",
+            duration: 7000,
           });
         }
       );
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        latitude: 28.6139,
-        longitude: 77.209,
-      }));
       setLocationLoading(false);
+      toast({
+        title: "Location unavailable",
+        description: "Geolocation is not supported by your browser. Please enter coordinates manually.",
+        variant: "destructive",
+        duration: 7000,
+      });
     }
   };
 
