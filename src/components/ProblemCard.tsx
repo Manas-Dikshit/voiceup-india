@@ -8,7 +8,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Calendar } from "lucide-react";
+<<<<<<< Updated upstream
 import { motion } from "framer-motion";
+=======
+import { useVote } from "@/hooks/useVote";
+>>>>>>> Stashed changes
 
 interface Problem {
   id: string;
@@ -24,7 +28,6 @@ interface Problem {
 
 interface ProblemCardProps {
   problem: Problem;
-  onVote: (problemId: string, voteType: "upvote" | "downvote") => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -48,7 +51,13 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
-const ProblemCard = ({ problem, onVote }: ProblemCardProps) => {
+const ProblemCard = ({ problem }: ProblemCardProps) => {
+  const { mutate: vote, isPending: isVoting } = useVote();
+
+  const handleVote = (voteType: 'upvote' | 'downvote') => {
+    vote({ problemId: problem.id, voteType });
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-IN", {
@@ -59,6 +68,7 @@ const ProblemCard = ({ problem, onVote }: ProblemCardProps) => {
   };
 
   return (
+<<<<<<< Updated upstream
     <motion.div
       whileHover={{ y: -4 }}
       transition={{ duration: 0.2 }}
@@ -159,6 +169,75 @@ const ProblemCard = ({ problem, onVote }: ProblemCardProps) => {
         </CardFooter>
       </Card>
     </motion.div>
+=======
+    <Card className="glass hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-foreground mb-2">{problem.title}</h3>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className={categoryColors[problem.category] || categoryColors.other}>
+                {problem.category}
+              </Badge>
+              <Badge variant="outline" className={statusColors[problem.status]}>
+                {problem.status.replace("_", " ")}
+              </Badge>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-foreground">{problem.votes_count ?? 0}</div>
+            <div className="text-xs text-muted-foreground">votes</div>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pb-3">
+        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{problem.description}</p>
+        
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            <span>
+              {typeof problem.latitude === 'number' && typeof problem.longitude === 'number' ? (
+                <>{problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}</>
+              ) : (
+                <>—</>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            <span>{formatDate(problem.created_at)}</span>
+          </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="pt-3 border-t">
+        <div className="flex items-center gap-2 w-full">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => handleVote("upvote")}
+            disabled={isVoting}
+          >
+            <ThumbsUp className="h-4 w-4 mr-2" />
+            Upvote
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={() => handleVote("downvote")}
+            disabled={isVoting}
+          >
+            <ThumbsDown className="h-4 w-4 mr-2" />
+            Downvote
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+>>>>>>> Stashed changes
   );
 };
 

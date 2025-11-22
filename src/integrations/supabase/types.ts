@@ -235,7 +235,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      nearby_problems: {
+        Args: {
+          lat: number
+          long: number
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          category: Database["public"]["Enums"]["problem_category"]
+          votes_count: number
+          status: Database["public"]["Enums"]["problem_status"]
+          created_at: string
+          latitude: number
+          longitude: number
+        }[]
+      }
+      vote_problem: {
+        Args: {
+          problem_id: string
+          vote_type: "upvote" | "downvote"
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       commentable_type: "problem" | "solution"
