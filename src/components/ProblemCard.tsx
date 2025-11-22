@@ -8,11 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Calendar } from "lucide-react";
-<<<<<<< Updated upstream
-import { motion } from "framer-motion";
-=======
 import { useVote } from "@/hooks/useVote";
->>>>>>> Stashed changes
 
 interface Problem {
   id: string;
@@ -68,108 +64,6 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
   };
 
   return (
-<<<<<<< Updated upstream
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
-      className="group"
-    >
-      <Card
-        className="
-          hover:shadow-xl transition-all duration-300
-          bg-gradient-to-br from-background via-background/95 to-background/80
-          border border-border/60 backdrop-blur-sm
-          rounded-2xl overflow-hidden
-        "
-      >
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
-                {problem.title}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="secondary"
-                  className={categoryColors[problem.category] || categoryColors.other}
-                >
-                  {problem.category}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={statusColors[problem.status] || statusColors.reported}
-                >
-                  {problem.status.replace("_", " ")}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <div className="text-3xl font-bold text-foreground">
-                {problem.votes_count}
-              </div>
-              <div className="text-xs text-muted-foreground">votes</div>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="pb-3">
-          <p className="text-muted-foreground text-sm line-clamp-3 mb-3">
-            {problem.description}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-primary/70" />
-              <span>
-                {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3 text-primary/70" />
-              <span>{formatDate(problem.created_at)}</span>
-            </div>
-          </div>
-        </CardContent>
-
-        <CardFooter className="pt-3 border-t border-border/60">
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-            <motion.div whileTap={{ scale: 0.95 }} className="flex-1 w-full">
-              <Button
-                variant="outline"
-                size="sm"
-                className="
-                  w-full bg-primary/5 hover:bg-primary/10
-                  text-primary border-primary/20
-                  transition-colors duration-200
-                "
-                onClick={() => onVote(problem.id, "upvote")}
-              >
-                <ThumbsUp className="h-4 w-4 mr-2" />
-                Upvote
-              </Button>
-            </motion.div>
-
-            <motion.div whileTap={{ scale: 0.95 }} className="flex-1 w-full">
-              <Button
-                variant="outline"
-                size="sm"
-                className="
-                  w-full bg-destructive/5 hover:bg-destructive/10
-                  text-destructive border-destructive/20
-                  transition-colors duration-200
-                "
-                onClick={() => onVote(problem.id, "downvote")}
-              >
-                <ThumbsDown className="h-4 w-4 mr-2" />
-                Downvote
-              </Button>
-            </motion.div>
-          </div>
-        </CardFooter>
-      </Card>
-    </motion.div>
-=======
     <Card className="glass hover:shadow-lg transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -237,7 +131,6 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
         </div>
       </CardFooter>
     </Card>
->>>>>>> Stashed changes
   );
 };
 
