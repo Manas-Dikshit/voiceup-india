@@ -11,6 +11,9 @@ import ProblemCard from "@/components/ProblemCard";
 import ReportProblem from "@/components/ReportProblem";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import Chatbot, { Message } from "@/components/Chatbot";
+import { MessageCircle } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -83,6 +86,7 @@ const Dashboard = () => {
   const [showReportForm, setShowReportForm] = useState(false);
   const { position: location, error: locationError } = useUserLocation();
   const queryClient = useQueryClient();
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
 
   const { data: problems = [], isLoading: problemsLoading } = useQuery<Problem[]>({
     queryKey: ['problems'],
@@ -104,7 +108,8 @@ const Dashboard = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "problems" },
         () => {
-          loadProblems();
+          queryClient.invalidateQueries({ queryKey: ["problems"] });
+          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
         }
       )
       .subscribe();
@@ -115,7 +120,8 @@ const Dashboard = () => {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "votes" },
         () => {
-          loadProblems();
+          queryClient.invalidateQueries({ queryKey: ["problems"] });
+          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
         }
       )
       .subscribe();
@@ -124,7 +130,7 @@ const Dashboard = () => {
       supabase.removeChannel(problemsChannel);
       supabase.removeChannel(votesChannel);
     };
-  }, []);
+  }, [queryClient]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -161,12 +167,46 @@ const Dashboard = () => {
     });
     navigate("/");
   };
-  
+
   const handleSuccess = () => {
     setShowReportForm(false);
     queryClient.invalidateQueries({ queryKey: ['problems'] });
     queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
-  }
+  };
+
+  const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
+    // Optimistically update UI
+    const newUserMessage: Message = {
+      id: `user-${Date.now()}`,
+      text: message,
+      sender: "user",
+    };
+    setChatHistory([...currentHistory, newUserMessage]);
+
+    const { data, error } = await supabase.functions.invoke("chatbot", {
+      body: { message },
+    });
+
+    if (error) {
+      console.error("Error invoking chatbot function:", error);
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        text: "Failed to get a response from the AI assistant.",
+        sender: "bot",
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
+      throw new Error("Failed to get a response from the AI assistant.");
+    }
+    
+    const botMessage: Message = {
+      id: `bot-${Date.now()}`,
+      text: data.reply || "Sorry, I couldn't process that. Please try again.",
+      sender: "bot",
+    };
+
+    setChatHistory(prev => [...prev, botMessage]);
+    return botMessage.text;
+  };
 
   if (loading || problemsLoading) {
     return (
@@ -317,9 +357,8 @@ const Dashboard = () => {
                     key={problem.id}
                     problem={problem}
                   />
-                ))
-              }
-            </div>
+                ))}
+              </div>
             )}
           </TabsContent>
 
@@ -333,8 +372,7 @@ const Dashboard = () => {
                     key={problem.id}
                     problem={problem}
                   />
-                ))
-              }
+                ))}
             </div>
           </TabsContent>
         </Tabs>
@@ -347,6 +385,27 @@ const Dashboard = () => {
           onSuccess={handleSuccess}
         />
       )}
+
+      {/* Chatbot FAB */}
+      <Drawer>
+        <DrawerTrigger asChild>
+          <Button
+            className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-lg"
+            size="icon"
+          >
+            <MessageCircle className="h-8 w-8" />
+          </Button>
+        </DrawerTrigger>
+        <DrawerContent className="h-[85vh] max-h-[85vh]">
+          <div className="p-4 h-full">
+            <Chatbot 
+              onSendMessage={handleBotSendMessage} 
+              history={chatHistory}
+              setHistory={setChatHistory}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
