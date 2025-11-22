@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import Chatbot, { Message } from "@/components/Chatbot";
 import { MessageCircle } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface Profile {
   id: string;
@@ -231,6 +232,7 @@ const Dashboard = () => {
                 <span>{profile?.points} points</span>
               </div>
             </div>
+            <NotificationBell />
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out

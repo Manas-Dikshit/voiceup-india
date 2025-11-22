@@ -94,10 +94,29 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
     setLoading(true);
 
     try {
+      if (!formData.latitude || !formData.longitude) {
+        throw new Error("Location is required. Please use the location detector or enter coordinates manually.");
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error("You must be logged in to report a problem");
       }
+
+      // =================================================================
+      // NEW: Verify that a profile exists for the user before inserting
+      // =================================================================
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Profile check failed:', profileError);
+        throw new Error("Your user profile is missing or inaccessible, which is required to post a problem. Please try logging out and back in. If the problem persists, contact support.");
+      }
+      // =================================================================
 
       if (!attachment) {
         throw new Error("Please attach at least one file. Attachments are required.");
@@ -125,17 +144,22 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       const mediaUrl = publicUrlData.publicUrl;
 
       // Append pincode/area info to description (DB doesn't currently have dedicated columns for them)
-      const fullDescription = `${formData.description}${formData.pincode ? `\n\nPincode: ${formData.pincode}` : ""}${areaName ? `\nArea: ${areaName}` : ""}`;
+      const fullDescription = `${formData.description}${areaName ? `\nArea: ${areaName}` : ""}`;
 
-      const { error } = await supabase.from("problems").insert([{ 
+      const problemData = { 
         user_id: session.user.id,
         title: formData.title,
         description: fullDescription,
         category: formData.category,
+        pincode: formData.pincode,
         latitude: formData.latitude,
         longitude: formData.longitude,
         media_url: mediaUrl,
-      }]);
+      };
+
+      console.log('Submitting problem with payload:', problemData);
+
+      const { error } = await supabase.from("problems").insert([problemData]);
 
       if (error) throw error;
 

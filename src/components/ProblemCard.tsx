@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -7,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, ThumbsDown, MapPin, Calendar } from "lucide-react";
+import { ThumbsUp, ThumbsDown, MapPin, Calendar, MessageSquare } from "lucide-react";
 import { useVote } from "@/hooks/useVote";
 
 interface Problem {
@@ -20,6 +21,7 @@ interface Problem {
   created_at: string;
   latitude: number;
   longitude: number;
+  comments_count?: number; // Optional comments count
 }
 
 interface ProblemCardProps {
@@ -64,7 +66,7 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
   };
 
   return (
-    <Card className="glass hover:shadow-lg transition-shadow">
+    <Card className="glass hover:shadow-lg transition-shadow flex flex-col h-full">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
@@ -85,7 +87,7 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="pb-3">
+      <CardContent className="pb-3 flex-grow">
         <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{problem.description}</p>
         
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -127,6 +129,12 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
           >
             <ThumbsDown className="h-4 w-4 mr-2" />
             Downvote
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1" asChild>
+            <Link to={`/problem/${problem.id}`}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Comments {problem.comments_count ? `(${problem.comments_count})` : ''}
+            </Link>
           </Button>
         </div>
       </CardFooter>
