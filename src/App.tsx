@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +8,17 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import MinistryLayout from "./pages/ministry/MinistryLayout";
+import MinistryLogin from "./pages/ministry/MinistryLogin";
+import MinistryDashboard from "./pages/ministry/MinistryDashboard";
+import MinistryProblemsPage from "./pages/ministry/problems";
+import MinistryAnalyticsPage from "./pages/ministry/analytics";
+import MinistryReportsPage from "./pages/ministry/reports";
+import MinistryMapPage from "./pages/ministry/maps";
+import SuspenseLoader from "@/components/SuspenseLoader";
+
+// Lazy load ministry pages
+const MinistryAuditPage = React.lazy(() => import("./pages/ministry/audit"));
 
 const queryClient = new QueryClient();
 
@@ -16,13 +28,27 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <React.Suspense fallback={<SuspenseLoader />}>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Ministry Routes */}
+            <Route path="/ministry/login" element={<MinistryLogin />} />
+            <Route path="/ministry" element={<MinistryLayout />}>
+              <Route path="dashboard" element={<MinistryDashboard />} />
+              <Route path="problems" element={<MinistryProblemsPage />} />
+              <Route path="analytics" element={<MinistryAnalyticsPage />} />
+              <Route path="reports" element={<MinistryReportsPage />} />
+              <Route path="map" element={<MinistryMapPage />} />
+              <Route path="audit" element={<MinistryAuditPage />} />
+            </Route>
+
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </React.Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
