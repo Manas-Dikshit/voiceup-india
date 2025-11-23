@@ -1,13 +1,28 @@
--- Create enum types
-CREATE TYPE problem_status AS ENUM ('reported', 'under_review', 'approved', 'in_progress', 'completed', 'rejected');
-CREATE TYPE problem_category AS ENUM ('roads', 'water', 'electricity', 'sanitation', 'education', 'healthcare', 'pollution', 'safety', 'other');
-CREATE TYPE user_role AS ENUM ('citizen', 'ministry', 'admin');
-CREATE TYPE vote_type AS ENUM ('upvote', 'downvote');
-CREATE TYPE votable_type AS ENUM ('problem', 'solution');
-CREATE TYPE commentable_type AS ENUM ('problem', 'solution');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'problem_status') THEN
+        CREATE TYPE problem_status AS ENUM ('reported', 'under_review', 'approved', 'in_progress', 'completed', 'rejected');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'problem_category') THEN
+        CREATE TYPE problem_category AS ENUM ('roads', 'water', 'electricity', 'sanitation', 'education', 'healthcare', 'pollution', 'safety', 'other');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('citizen', 'ministry', 'admin');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vote_type') THEN
+        CREATE TYPE vote_type AS ENUM ('upvote', 'downvote');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'votable_type') THEN
+        CREATE TYPE votable_type AS ENUM ('problem', 'solution');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'commentable_type') THEN
+        CREATE TYPE commentable_type AS ENUM ('problem', 'solution');
+    END IF;
+END
+$$;
 
 -- Create profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT NOT NULL,
   points INTEGER DEFAULT 0,
@@ -20,7 +35,7 @@ CREATE TABLE public.profiles (
 );
 
 -- Create problems table
-CREATE TABLE public.problems (
+CREATE TABLE IF NOT EXISTS public.problems (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
@@ -38,7 +53,7 @@ CREATE TABLE public.problems (
 );
 
 -- Create solutions table
-CREATE TABLE public.solutions (
+CREATE TABLE IF NOT EXISTS public.solutions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   problem_id UUID REFERENCES public.problems(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
@@ -50,7 +65,7 @@ CREATE TABLE public.solutions (
 );
 
 -- Create votes table
-CREATE TABLE public.votes (
+CREATE TABLE IF NOT EXISTS public.votes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   votable_type votable_type NOT NULL,
@@ -61,7 +76,7 @@ CREATE TABLE public.votes (
 );
 
 -- Create comments table
-CREATE TABLE public.comments (
+CREATE TABLE IF NOT EXISTS public.comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   commentable_type commentable_type NOT NULL,
@@ -79,80 +94,95 @@ ALTER TABLE public.votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for profiles
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.profiles;
 CREATE POLICY "Users can view all profiles"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
   ON public.profiles FOR UPDATE
   TO authenticated
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile"
   ON public.profiles FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = id);
 
 -- RLS Policies for problems
+DROP POLICY IF EXISTS "Anyone can view problems" ON public.problems;
 CREATE POLICY "Anyone can view problems"
   ON public.problems FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create problems" ON public.problems;
 CREATE POLICY "Authenticated users can create problems"
   ON public.problems FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own problems" ON public.problems;
 CREATE POLICY "Users can update their own problems"
   ON public.problems FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- RLS Policies for solutions
+DROP POLICY IF EXISTS "Anyone can view solutions" ON public.solutions;
 CREATE POLICY "Anyone can view solutions"
   ON public.solutions FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create solutions" ON public.solutions;
 CREATE POLICY "Authenticated users can create solutions"
   ON public.solutions FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own solutions" ON public.solutions;
 CREATE POLICY "Users can update their own solutions"
   ON public.solutions FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- RLS Policies for votes
+DROP POLICY IF EXISTS "Anyone can view votes" ON public.votes;
 CREATE POLICY "Anyone can view votes"
   ON public.votes FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create votes" ON public.votes;
 CREATE POLICY "Authenticated users can create votes"
   ON public.votes FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own votes" ON public.votes;
 CREATE POLICY "Users can delete their own votes"
   ON public.votes FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
 -- RLS Policies for comments
+DROP POLICY IF EXISTS "Anyone can view comments" ON public.comments;
 CREATE POLICY "Anyone can view comments"
   ON public.comments FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can create comments" ON public.comments;
 CREATE POLICY "Authenticated users can create comments"
   ON public.comments FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own comments" ON public.comments;
 CREATE POLICY "Users can update their own comments"
   ON public.comments FOR UPDATE
   TO authenticated

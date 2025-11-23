@@ -18,6 +18,8 @@ import MinistryMapPage from "./pages/ministry/maps";
 import SuspenseLoader from "@/components/SuspenseLoader";
 import ProblemDetail from "./pages/ProblemDetail";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import MinistryRoute from "@/components/MinistryRoute";
+import MinistryDashboardPage from "./pages/MinistryDashboard";
 
 // Lazy load ministry pages
 const MinistryAuditPage = React.lazy(() => import("./pages/ministry/audit"));
@@ -36,6 +38,11 @@ const App = () => (
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/problem/:id" element={<ProblemDetail />} />
+          </Route>
+
+          {/* Protected Ministry Route */}
+          <Route element={<MinistryRoute />}>
+            <Route path="/ministry-dashboard" element={<MinistryDashboardPage />} />
           </Route>
 
           {/* Ministry Routes */}

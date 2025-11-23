@@ -15,6 +15,7 @@ import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import Chatbot, { Message } from "@/components/Chatbot";
 import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import CorrelationMap from "@/components/maps/CorrelationMap";
 
 interface Profile {
   id: string;
@@ -48,7 +49,7 @@ const fetchProblems = async () => {
 const fetchNearbyProblems = async (latitude: number, longitude: number) => {
   const { data, error } = await supabase.rpc('nearby_problems', {
     lat: latitude,
-    long: longitude
+    lng: longitude
   });
   if (error) throw new Error(error.message);
   const rows = (data || []) as any[];
@@ -302,6 +303,7 @@ const Dashboard = () => {
             <TabsTrigger value="all">All Problems</TabsTrigger>
             <TabsTrigger value="nearby">Nearby</TabsTrigger>
             <TabsTrigger value="trending">Trending</TabsTrigger>
+            <TabsTrigger value="insights">🗺️ Local Insights</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
@@ -376,6 +378,17 @@ const Dashboard = () => {
                   />
                 ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="insights" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Geospatial Problem Correlations</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[500px] p-0">
+                <CorrelationMap />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
