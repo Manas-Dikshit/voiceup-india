@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,12 +103,14 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-info to-accent p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">VoiceUp</h1>
-          <p className="text-white/90">Empowering Citizens Through Digital Participation</p>
-        </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary via-info to-accent p-4">
+      <Header />
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">VoiceUp</h1>
+            <p className="text-white/90">Empowering Citizens Through Digital Participation</p>
+          </div>
 
         <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -217,6 +220,7 @@ const Auth = () => {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
     </div>
   );
 };

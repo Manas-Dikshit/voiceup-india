@@ -1,5 +1,6 @@
 import React from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   right?: React.ReactNode;
@@ -8,6 +9,16 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
+  const navigate = useNavigate();
+
+  const goBack = () => {
+    try {
+      navigate(-1);
+    } catch (e) {
+      // fallback to history
+      window.history.back();
+    }
+  };
   return (
     <>
       <header
@@ -19,18 +30,29 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
         role="banner"
       >
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:py-4">
-          {/* Logo / Title */}
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-primary" aria-hidden="true" />
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                VoiceUp
-              </h1>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground leading-tight">
-                  {subtitle}
-                </p>
-              )}
+          {/* Back button + Logo / Title */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={goBack}
+              aria-label="Go back"
+              title="Go back"
+              className="p-2 rounded hover:bg-muted/50 text-muted-foreground"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <MapPin className="h-6 w-6 text-primary" aria-hidden="true" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                  VoiceUp
+                </h1>
+                {subtitle && (
+                  <p className="text-sm text-muted-foreground leading-tight">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

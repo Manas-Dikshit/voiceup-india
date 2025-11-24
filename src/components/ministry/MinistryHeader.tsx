@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon, LayoutDashboard, ListChecks, BarChart2, FileDown, Map, ShieldCheck } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, ListChecks, BarChart2, FileDown, Map, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
 
@@ -20,8 +20,18 @@ const MinistryHeader = ({ user }: MinistryHeaderProps) => {
     <header className="bg-white dark:bg-slate-800 shadow-md">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              title="Go back"
+              className="p-2 rounded hover:bg-muted/50 text-muted-foreground"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+
             <h1 className="text-xl font-bold text-primary">VoiceUp Ministry</h1>
+
             <nav className="hidden md:flex gap-6">
               <Link to="/ministry/dashboard" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary">
                 <LayoutDashboard className="h-4 w-4" />
