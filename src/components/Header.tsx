@@ -1,6 +1,7 @@
 import React from "react";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import MobileNav from "./MobileNav";
 
 interface HeaderProps {
   right?: React.ReactNode;
@@ -22,11 +23,7 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
   return (
     <>
       <header
-        className="
-          fixed top-0 left-0 right-0 z-50
-          backdrop-blur-md bg-background/70 border-b border-border/40
-          shadow-sm transition-all duration-300
-        "
+        className="fixed top-0 left-0 right-0 z-50 glass-nav"
         role="banner"
       >
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:py-4">
@@ -64,7 +61,10 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
           )}
 
           {/* Right Actions (buttons, avatar, etc.) */}
-          <div className="flex items-center gap-3">{right}</div>
+          <div className="flex items-center gap-3">
+            {right}
+            <MobileNav nav={nav} />
+          </div>
         </div>
       </header>
 
