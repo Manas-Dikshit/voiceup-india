@@ -1,17 +1,17 @@
-CREATE OR REPLACE FUNCTION nearby_problems(lat float, long float)
+CREATE OR REPLACE FUNCTION public.nearby_problems(lat double precision, lng double precision)
 RETURNS TABLE (
-  id bigint,
+  id uuid,
   created_at timestamptz,
   title text,
   description text,
-  category text,
-  status text,
-  upvotes_count integer,
-  latitude float,
-  longitude float,
+  category problem_category,
+  status problem_status,
+  votes_count integer,
+  latitude numeric,
+  longitude numeric,
   media_url text,
   user_id uuid,
-  distance float
+  distance_km double precision
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -22,22 +22,23 @@ BEGIN
     p.description,
     p.category,
     p.status,
-    p.upvotes_count,
+    p.votes_count,
     p.latitude,
     p.longitude,
     p.media_url,
     p.user_id,
     (
       6371 * acos(
-        cos(radians(lat)) * cos(radians(p.latitude)) *
-        cos(radians(p.longitude) - radians(long)) +
-        sin(radians(lat)) * sin(radians(p.latitude))
+        cos(radians(lat)) * cos(radians(CAST(p.latitude AS double precision))) *
+        cos(radians(CAST(p.longitude AS double precision)) - radians(lng)) +
+        sin(radians(lat)) * sin(radians(CAST(p.latitude AS double precision)))
       )
-    ) AS distance
+    )::double precision AS distance_km
   FROM
     public.problems p
+  WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
   ORDER BY
-    distance
-  LIMIT 20;
+    distance_km
+  LIMIT 50;
 END;
 $$ LANGUAGE plpgsql;

@@ -6,8 +6,8 @@ type VoteVars = { problemId: string; voteType: 'upvote' | 'downvote' };
 
 async function voteProblem({ problemId, voteType }: VoteVars) {
   const { error } = await supabase.rpc('vote_problem', {
-    problem_id: problemId,
-    vote_type: voteType,
+    p_problem_id: problemId,
+    p_vote_type: voteType,
   });
 
   if (error) {
