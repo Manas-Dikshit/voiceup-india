@@ -48,7 +48,7 @@ const fetchProblems = async () => {
 };
 
 const fetchNearbyProblems = async (latitude: number, longitude: number) => {
-  const { data, error } = await supabase.rpc('nearby_problems', {
+  const { data, error } = await (supabase as any).rpc('nearby_problems', {
     lat: latitude,
     lng: longitude
   });
@@ -80,25 +80,26 @@ const fetchNearbyProblems = async (latitude: number, longitude: number) => {
   });
 };
 
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const [mapFocus, setMapFocus] = useState<{ lat?: number | null; lng?: number | null; id?: string | number; pincode?: string } | null>(null);
-  const { position: location, error: locationError } = useUserLocation();
-  const queryClient = useQueryClient();
+  const { location, error: locationError } = useUserLocation();
+  const [activeTab, setActiveTab] = useState("all");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [userVoteMap, setUserVoteMap] = useState<{[key: string]: 'up' | 'down'}>({});
+  const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
 
-  const { data: problems = [], isLoading: problemsLoading } = useQuery<Problem[]>({
-    queryKey: ['problems'],
-    queryFn: fetchProblems
+  const queryClient = useQueryClient();
+
+  const { data: problems, isLoading: problemsLoading } = useQuery({
+    queryKey: ["problems"],
+    queryFn: fetchProblems,
   });
 
-  const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery<Problem[]>({
+  const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery({
     queryKey: ['nearbyProblems', location?.latitude, location?.longitude],
     queryFn: () => fetchNearbyProblems(location!.latitude, location!.longitude),
     enabled: !!location,
@@ -199,7 +200,7 @@ const Dashboard = () => {
         text: "Failed to get a response from the AI assistant.",
         sender: "bot",
       };
-      setChatHistory(prev => [...prev, errorMessage]);
+      setChatHistory((prev: Message[]) => [...prev, errorMessage]);
       throw new Error("Failed to get a response from the AI assistant.");
     }
     
@@ -209,7 +210,7 @@ const Dashboard = () => {
       sender: "bot",
     };
 
-    setChatHistory(prev => [...prev, botMessage]);
+    setChatHistory((prev: Message[]) => [...prev, botMessage]);
     return botMessage.text;
   };
 
@@ -248,7 +249,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-primary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
@@ -256,12 +257,12 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.points} Points</div>
-              <p className="text-xs text-muted-foreground mt-1">Keep contributing to earn more!</p>
+              <div className="text-2xl font-bold">{profile?.points ?? 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Points earned by voting, reporting, and commenting.</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-secondary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Award className="h-4 w-4 text-secondary" />
@@ -269,12 +270,17 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.badges?.length || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Unlock more achievements</p>
+              <div className="text-2xl font-bold">{profile?.badges?.length ?? 0}</div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(profile?.badges ?? []).map((badge: string, i: number) => (
+                  <span key={i} className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border">{badge}</span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Unlock more achievements by contributing.</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-info/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-info" />
@@ -282,7 +288,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{problems.length}</div>
+              <div className="text-2xl font-bold">{(Array.isArray(problems) ? problems.length : 0)}</div>
               <p className="text-xs text-muted-foreground mt-1">In your area</p>
             </CardContent>
           </Card>
@@ -290,18 +296,18 @@ const Dashboard = () => {
 
         {/* Report Problem Button */}
         <div className="mb-6">
-          <Button 
-            size="lg" 
-            className="w-full md:w-auto bg-secondary hover:bg-secondary/90"
+          <Button
+            size="lg"
+            className="w-full md:w-auto"
             onClick={() => setShowReportForm(true)}
+            variant="glass-primary"
           >
             <Plus className="h-5 w-5 mr-2" />
             Report a Problem
           </Button>
         </div>
-
         {/* Problems List */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
           <TabsList>
             <TabsTrigger value="all">All Problems</TabsTrigger>
             <TabsTrigger value="nearby">Nearby</TabsTrigger>
@@ -311,18 +317,19 @@ const Dashboard = () => {
 
           <TabsContent value="all" className="mt-6">
             <div className="space-y-4">
-              {problems.length === 0 ? (
+              {(Array.isArray(problems) ? problems : []).length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     No problems reported yet. Be the first to report one!
                   </CardContent>
                 </Card>
               ) : (
-                problems.map((problem) => (
+                (Array.isArray(problems) ? problems : []).map((problem) => (
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onShowOnMap={(p) => {
+                    userVote={userVoteMap[problem.id]}
+                    onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
                     }}
@@ -367,7 +374,8 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onShowOnMap={(p) => {
+                    userVote={userVoteMap[problem.id]}
+                    onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
                     }}
@@ -379,14 +387,15 @@ const Dashboard = () => {
 
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
-              {problems
-                .sort((a, b) => b.votes_count - a.votes_count)
+              {(Array.isArray(problems) ? problems : [])
+                .sort((a: Problem, b: Problem) => b.votes_count - a.votes_count)
                 .slice(0, 5)
                 .map((problem) => (
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onShowOnMap={(p) => {
+                    userVote={userVoteMap[problem.id]}
+                    onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
                     }}

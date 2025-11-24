@@ -112,7 +112,7 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
       <CardFooter className="pt-3 border-t">
         <div className="flex items-center gap-2 w-full">
           <Button
-            variant="outline"
+            variant="glass-success"
             size="sm"
             className="flex-1"
             onClick={() => handleVote("upvote")}
@@ -122,7 +122,7 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
             Upvote
           </Button>
           <Button
-            variant="outline"
+            variant="glass-destructive"
             size="sm"
             className="flex-1"
             onClick={() => handleVote("downvote")}
@@ -131,14 +131,14 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
             <ThumbsDown className="h-4 w-4 mr-2" />
             Downvote
           </Button>
-          <Button variant="outline" size="sm" className="flex-1" asChild>
+          <Button variant="glass-primary" size="sm" className="flex-1" asChild>
             <Link to={`/problem/${problem.id}`}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Comments {problem.comments_count ? `(${problem.comments_count})` : ''}
             </Link>
           </Button>
           <Button
-            variant="ghost"
+            variant="glass-primary"
             size="sm"
             className="flex-1"
             onClick={() => onShowOnMap && onShowOnMap(problem)}
