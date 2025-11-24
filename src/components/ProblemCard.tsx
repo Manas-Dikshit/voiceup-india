@@ -26,6 +26,7 @@ interface Problem {
 
 interface ProblemCardProps {
   problem: Problem;
+  onShowOnMap?: (problem: Problem) => void;
 }
 
 const categoryColors: Record<string, string> = {
@@ -49,7 +50,7 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
-const ProblemCard = ({ problem }: ProblemCardProps) => {
+const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
   const { mutate: vote, isPending: isVoting } = useVote();
 
   const handleVote = (voteType: 'upvote' | 'downvote') => {
@@ -135,6 +136,15 @@ const ProblemCard = ({ problem }: ProblemCardProps) => {
               <MessageSquare className="h-4 w-4 mr-2" />
               Comments {problem.comments_count ? `(${problem.comments_count})` : ''}
             </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1"
+            onClick={() => onShowOnMap && onShowOnMap(problem)}
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Map
           </Button>
         </div>
       </CardFooter>
