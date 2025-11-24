@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { columns, Problem } from "./columns";
 import { DataTable } from "@/components/ui/data-table";
+import BackButton from "@/components/BackButton";
 import ChangeStatusModal from "@/components/ministry/ChangeStatusModal";
 
 const MinistryProblemsPage = () => {
@@ -46,6 +47,7 @@ const MinistryProblemsPage = () => {
 
   return (
     <div>
+      <BackButton />
       <h1 className="text-3xl font-bold mb-6">Problem Management</h1>
       <DataTable
         columns={columns}
