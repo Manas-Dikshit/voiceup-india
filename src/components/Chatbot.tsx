@@ -21,28 +21,26 @@ interface ChatbotProps {
 const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
+  // Load saved chat from localStorage
   useEffect(() => {
-    // Load chat history from localStorage on initial render
-    const storedMessages = localStorage.getItem("chatHistory");
-    if (storedMessages) {
-      setHistory(JSON.parse(storedMessages));
-    }
+    const saved = localStorage.getItem("chatHistory");
+    if (saved) setHistory(JSON.parse(saved));
   }, [setHistory]);
 
+  // Save chat + auto-scroll
   useEffect(() => {
-    // Save chat history to localStorage whenever it changes
     if (history.length > 0) {
       localStorage.setItem("chatHistory", JSON.stringify(history));
     } else {
       localStorage.removeItem("chatHistory");
     }
 
-    // Auto-scroll to the bottom
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({
-        top: scrollAreaRef.current.scrollHeight,
+    // Auto-scroll to bottom
+    if (viewportRef.current) {
+      viewportRef.current.scrollTo({
+        top: viewportRef.current.scrollHeight,
         behavior: "smooth",
       });
     }
@@ -55,15 +53,29 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const messageToSend = input;
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      text: input.trim(),
+      sender: "user",
+    };
+
+    const newHistory = [...history, userMessage];
+    setHistory(newHistory);
     setInput("");
     setIsLoading(true);
 
     try {
-      await onSendMessage(messageToSend, history);
-    } catch (error) {
-      // Error is handled in the parent component's onSendMessage
-      console.error("Error sending message:", error);
+      const botResponse = await onSendMessage(userMessage.text, newHistory);
+
+      const botMessage: Message = {
+        id: crypto.randomUUID(),
+        text: botResponse,
+        sender: "bot",
+      };
+
+      setHistory((prev) => [...prev, botMessage]);
+    } catch (err) {
+      console.error("Error sending:", err);
     } finally {
       setIsLoading(false);
     }
@@ -71,21 +83,20 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
 
   return (
     <div className="flex flex-col h-full bg-card border rounded-lg shadow-lg">
+      {/* Header */}
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-lg font-semibold flex items-center">
           <Bot className="mr-2" /> AI Assistant
         </h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleClearChat}
-          title="Clear Chat"
-        >
+        <Button variant="ghost" size="icon" onClick={handleClearChat}>
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="space-y-4">
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-4">
+        <div ref={viewportRef} className="space-y-4">
+
           {history.length === 0 && !isLoading && (
             <div className="text-center text-muted-foreground py-8">
               <p>Ask me anything about public issues or just chat!</p>
@@ -94,30 +105,33 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
               </p>
             </div>
           )}
-          {history.map((message) => (
+
+          {history.map((msg) => (
             <div
-              key={message.id}
+              key={msg.id}
               className={cn(
                 "flex items-start gap-3",
-                message.sender === "user" ? "justify-end" : ""
+                msg.sender === "user" && "justify-end"
               )}
             >
-              {message.sender === "bot" && (
+              {msg.sender === "bot" && (
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>AI</AvatarFallback>
                 </Avatar>
               )}
+
               <div
                 className={cn(
                   "p-3 rounded-lg max-w-xs lg:max-w-md",
-                  message.sender === "user"
+                  msg.sender === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
                 )}
               >
-                <p className="text-sm">{message.text}</p>
+                <p className="text-sm">{msg.text}</p>
               </div>
-              {message.sender === "user" && (
+
+              {msg.sender === "user" && (
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
                     <User />
@@ -126,6 +140,7 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
               )}
             </div>
           ))}
+
           {isLoading && (
             <div className="flex items-start gap-3">
               <Avatar className="h-8 w-8">
@@ -138,12 +153,14 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
           )}
         </div>
       </ScrollArea>
+
+      {/* Input box */}
       <div className="p-4 border-t">
         <div className="flex items-center gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Ask about public data or chat..."
             disabled={isLoading}
             className="flex-1"
