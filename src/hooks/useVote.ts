@@ -68,6 +68,8 @@ export const useVote = () => {
       // ensure all relevant lists refresh: match exact 'problems' and any 'nearbyProblems' queries with extra params
       queryClient.invalidateQueries({ queryKey: ['problems'] });
       queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'nearbyProblems' });
+      // also refresh any votes summary used on maps or other views
+      queryClient.invalidateQueries({ predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === 'votesForMap' });
     },
     onSettled: () => {
       // keep empty; invalidation done in onSuccess to avoid showing success on error

@@ -34,6 +34,7 @@ interface Problem {
   created_at: string;
   latitude: number;
   longitude: number;
+  pincode?: string;
 }
 
 const fetchProblems = async () => {
@@ -86,6 +87,8 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [mapFocus, setMapFocus] = useState<{ lat?: number | null; lng?: number | null; id?: string | number; pincode?: string } | null>(null);
   const { position: location, error: locationError } = useUserLocation();
   const queryClient = useQueryClient();
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
@@ -298,7 +301,7 @@ const Dashboard = () => {
         </div>
 
         {/* Problems List */}
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
           <TabsList>
             <TabsTrigger value="all">All Problems</TabsTrigger>
             <TabsTrigger value="nearby">Nearby</TabsTrigger>
@@ -319,6 +322,10 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
+                    onShowOnMap={(p) => {
+                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                      setActiveTab('insights');
+                    }}
                   />
                 ))
               )}
@@ -360,6 +367,10 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
+                    onShowOnMap={(p) => {
+                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                      setActiveTab('insights');
+                    }}
                   />
                 ))}
               </div>
@@ -375,9 +386,13 @@ const Dashboard = () => {
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
+                    onShowOnMap={(p) => {
+                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                      setActiveTab('insights');
+                    }}
                   />
                 ))}
-            </div>
+              </div>
           </TabsContent>
 
           <TabsContent value="insights" className="mt-6">
@@ -386,7 +401,7 @@ const Dashboard = () => {
                 <CardTitle>Geospatial Problem Correlations</CardTitle>
               </CardHeader>
               <CardContent className="h-[500px] p-0">
-                <CorrelationMap />
+                <CorrelationMap focus={mapFocus ? { lat: mapFocus.lat, lng: mapFocus.lng, zoom: 14, id: mapFocus.id, pincode: mapFocus.pincode } : null} />
               </CardContent>
             </Card>
           </TabsContent>

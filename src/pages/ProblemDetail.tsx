@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CommentThread } from "@/components/comments/CommentThread";
+import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,7 +47,9 @@ const ProblemDetail = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
+    <div>
+      <Header />
+      <div className="container mx-auto p-4 space-y-8">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">{problem.title}</CardTitle>
@@ -74,6 +77,7 @@ const ProblemDetail = () => {
       </Card>
 
       <CommentThread topicId={problem.id} topicType="problem" />
+      </div>
     </div>
   );
 };
