@@ -142,3 +142,24 @@ All colors MUST be HSL.
     height: 64px; /* matches header height (py-4 + font size) */
   }
 }
+
+@layer utilities {
+  .glass-scrollbar::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--glass) / 0.7);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+}
