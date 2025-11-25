@@ -46,6 +46,31 @@ npm run dev
 - Run all migrations in `supabase/migrations/` (or use the consolidated `MANUAL_MIGRATION.sql`)
 - Configure storage buckets for attachments
 
+### Supabase Sync Workflow
+Keep local SQL, RPCs, and generated types in lockstep with the hosted Supabase project:
+
+1. **Authenticate & link**
+	```sh
+	supabase login
+	supabase link --project-ref wfpxknccdypiwpsoyisx
+	```
+2. **Pull the remote schema** to refresh the `supabase/` directory (creates a migration if remote differs):
+	```sh
+	supabase db pull
+	```
+	Inspect the diff that Supabase emits; commit any newly created migration files.
+3. **Apply pending local migrations to the remote project** once the diff looks correct:
+	```sh
+	supabase db push
+	```
+4. **Regenerate TypeScript types** so hooks/components reference the latest schema:
+	```sh
+	supabase gen types typescript --encoded-config supabase/config.toml > src/integrations/supabase/types.ts
+	```
+5. **Validate locally** by running `npm run build` before deploying.
+
+> If the remote schema was changed outside of migrations, run steps 1–2, resolve conflicts in `supabase/migrations/`, and only then push. This prevents accidental overwrites.
+
 ### Environment Variables
 Create a `.env` file for any secrets (API keys, bucket names, etc). See `.env.example` if present.
 

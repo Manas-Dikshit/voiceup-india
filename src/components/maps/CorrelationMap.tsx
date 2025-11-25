@@ -39,6 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, Users } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 // Fix for default marker icon issue with bundlers like Webpack/Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -173,11 +174,13 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   });
 
   // Fetch the focused problem explicitly to ensure it's on the map
+  const focusProblemId = focus?.id != null ? String(focus.id) : null;
+
   const { data: focusedProblem } = useQuery({
-    queryKey: ['problem', focus?.id],
+    queryKey: ['problem', focusProblemId],
     queryFn: async () => {
-        if (!focus?.id) return null;
-        const { data, error } = await supabase.from('problems').select('*').eq('id', focus.id).single();
+        if (!focusProblemId) return null;
+        const { data, error } = await supabase.from('problems').select('*').eq('id', focusProblemId).single();
         if (error) {
             console.error('Failed to fetch focused problem', error);
             return null;
@@ -198,7 +201,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
         }
         return out;
     },
-    enabled: !!focus?.id,
+    enabled: !!focusProblemId,
   });
 
   const problemMarkers = React.useMemo(() => {
@@ -213,6 +216,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   }, [problemMarkersRaw, focusedProblem]);
 
   const voteMutation = useVote();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Fetch votes for the problems rendered on the map
@@ -241,9 +245,6 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
   // marker refs map (must be a hook and called unconditionally to keep hook order stable)
   const markerRefs = React.useRef<Record<string, any> | null>({});
-
-  // Debugging state: store last processed focus data for an on-screen overlay
-  const [debugFocus, setDebugFocus] = useState<any>(null);
 
   // Utility: validate and normalize lat/lng. Some DB rows may have swapped values or strings.
   const normalizeCoords = (rawLat: any, rawLng: any) => {
@@ -379,22 +380,20 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
   return (
     <MapErrorBoundary>
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <MapContainer center={mapCenter} zoom={12} style={containerStyle}>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
+      <div className="relative h-full w-full rounded-2xl border border-border bg-card shadow-sm">
+        <MapContainer center={mapCenter} zoom={12} style={containerStyle} className="h-full w-full rounded-2xl">
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
 
-      {/* Recenter component to change view when focus prop provided */}
-      {focus && (
-        <FocusHandler focus={focus} />
-      )}
+          {/* Recenter component to change view when focus prop provided */}
+          {focus && <FocusHandler focus={focus} />}
 
-      {correlationsLoading ? (
-        <div className="flex items-center justify-center h-full"><p>Loading correlation data...</p></div>
-      ) : (
-        correlations.map((c) => {
+          {correlationsLoading ? (
+            <div className="flex h-full items-center justify-center"><p>Loading correlation data...</p></div>
+          ) : (
+            correlations.map((c) => {
           const position = parseWktPoint(c.center_point_wkt);
           if (!position) return null;
 
@@ -403,52 +402,40 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
           const customIcon = new L.DivIcon({
             className: 'custom-div-icon',
-            html: `<div style='background: ${iconColor}; width: ${iconSize}px; height: ${iconSize}px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; opacity: 0.7;'></div>`,
+            html: `<div style="width:${iconSize}px;height:${iconSize}px;border-radius:999px;background:${iconColor};opacity:0.75;border:2px solid rgba(255,255,255,0.9);"></div>`,
             iconSize: [iconSize, iconSize],
             iconAnchor: [iconSize / 2, iconSize / 2]
           });
 
-          return (
-            <Marker
-              key={c.region_id + c.category_a + c.category_b}
-              position={position}
-              icon={customIcon}
-            >
-              <Popup>
-                <div className="w-80 rounded-2xl border border-border bg-background/95 p-4 text-foreground shadow-lg backdrop-blur-sm">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-bold text-primary">
-                      Problem Correlation
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Showing correlation between two problem categories in this area.
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{c.category_a}</Badge>
-                      <span className="text-muted-foreground">↔</span>
-                      <Badge variant="secondary">{c.category_b}</Badge>
+              return (
+                <Marker key={c.region_id + c.category_a + c.category_b} position={position} icon={customIcon}>
+                  <Popup>
+                    <div className="w-72 rounded-xl border border-border bg-white p-4 text-foreground shadow-lg">
+                      <div className="mb-3">
+                        <h3 className="text-base font-semibold text-primary">Correlation Alert</h3>
+                        <p className="text-xs text-muted-foreground">Overlap between categories in this grid cell</p>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-foreground">
+                          <Badge variant="secondary">{c.category_a}</Badge>
+                          <span className="text-muted-foreground">↔</span>
+                          <Badge variant="secondary">{c.category_b}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                          <TrendingUp className="h-3.5 w-3.5" /> Score
+                          <span className="font-mono text-base text-foreground">{c.correlation_score.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                          <Users className="h-3.5 w-3.5" /> Co-occurrences
+                          <span className="font-mono text-base text-foreground">{c.co_occurrence}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      <strong>Score:</strong>
-                      <span className="font-mono text-base">{c.correlation_score.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <strong>Co-occurrences:</strong>
-                      <span className="font-mono text-base">{c.co_occurrence}</span>
-                    </div>
-                  </div>
-                </div>
-              </Popup>
-
-            </Marker>
-          );
-        })
-      )}
+                  </Popup>
+                </Marker>
+              );
+            })
+          )}
 
       {/* Problem markers */}
       {(() => {
@@ -490,12 +477,12 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
             const problemIcon = new L.DivIcon({
               className: 'problem-label-icon',
-              html: `<div style="background: rgba(255,255,255,0.95); padding:4px 8px; border-radius:12px; border:1px solid #e5e7eb; font-size:12px; box-shadow:0 1px 2px rgba(0,0,0,0.06); display:flex; gap:8px; align-items:center;">
-                        <span style="font-weight:600; color:#111827; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${titleTrunc}</span>
-                        <span style="background:${net>=0? '#ecfdf5' : '#fff1f2'}; color:${net>=0? '#065f46' : '#b91c1c'}; padding:2px 6px; border-radius:999px; font-weight:700; font-size:11px;">${netLabel}</span>
+              html: `<div style="background:rgba(255,255,255,0.92);padding:6px 10px;border-radius:16px;border:1px solid rgba(15,23,42,0.1);font-size:12px;box-shadow:0 6px 18px rgba(15,23,42,0.15);display:flex;gap:8px;align-items:center;color:#0f172a;">
+                        <span style="font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${titleTrunc}</span>
+                        <span style="background:${net>=0? 'rgba(16,185,129,0.15)' : 'rgba(248,113,113,0.15)'};color:${net>=0? '#047857' : '#b91c1c'};padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px;">${netLabel}</span>
                       </div>`,
-              iconSize: [Math.min(220, 12 * titleTrunc.length + 60), 32],
-              iconAnchor: [10, 32],
+              iconSize: [Math.min(220, 12 * titleTrunc.length + 60), 36],
+              iconAnchor: [10, 36],
             });
 
             return (
@@ -518,9 +505,9 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
                     }}
               >
                 <Popup>
-                  <Card className="border-none shadow-none max-w-xs">
-                    <CardHeader className="p-2">
-                      <CardTitle className="text-base">
+                  <Card className="max-w-xs border border-border bg-white p-3 text-sm text-foreground shadow-lg">
+                    <CardHeader className="p-0 pb-2">
+                      <CardTitle className="text-base font-semibold">
                         <button
                           className="text-left text-primary hover:underline"
                           onClick={() => navigate(`/problems/${p.id}`)}
@@ -529,18 +516,42 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
                         </button>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="p-2 text-sm">
-                      <p className="mb-2">{p.description?.slice(0, 200)}</p>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'upvote' })}>
+                    <CardContent className="space-y-3 p-0">
+                      <p className="text-muted-foreground">{p.description?.slice(0, 160) ?? 'No description provided.'}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded-full border border-border px-2 py-1 uppercase tracking-widest">Net: {p.votes_count ?? 0}</span>
+                        <span className="rounded-full border border-emerald-200 px-2 py-1 text-emerald-700">↑ {counts.up}</span>
+                        <span className="rounded-full border border-rose-200 px-2 py-1 text-rose-700">↓ {counts.down}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full"
+                          onClick={() =>
+                            voteMutation.mutate({
+                              problemId: p.id,
+                              voteType: 'upvote',
+                              currentUserId: user?.id,
+                            })
+                          }
+                        >
                           👍 Upvote
                         </Button>
-                        <div className="text-sm">{counts.up}</div>
-                        <Button size="sm" variant="destructive" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'downvote' })}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                          onClick={() =>
+                            voteMutation.mutate({
+                              problemId: p.id,
+                              voteType: 'downvote',
+                              currentUserId: user?.id,
+                            })
+                          }
+                        >
                           👎 Downvote
                         </Button>
-                        <div className="text-sm">{counts.down}</div>
-                        <div className="ml-auto text-xs text-muted-foreground">Net: {p.votes_count ?? 0}</div>
                       </div>
                     </CardContent>
                   </Card>
@@ -550,21 +561,23 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
           });
         });
       })()}
-      </MapContainer>
+        </MapContainer>
 
-      {/* Debug overlay: shows last focus and normalized coords for troubleshooting (rendered outside MapContainer) */}
-      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 9999 }}>
-        <div className="bg-white/80 text-xs p-2 rounded shadow max-w-xs">
-          <div className="font-semibold">Map Debug</div>
-          <div id="__map_debug_place_holder" style={{ whiteSpace: 'pre-wrap', maxWidth: 300 }}>
-            {typeof (window as any).__correlationMapLastFocus !== 'undefined' ? (
-              <pre style={{ margin: 0 }}>{JSON.stringify((window as any).__correlationMapLastFocus, null, 2)}</pre>
-            ) : (
-              <div>No focus yet</div>
-            )}
-          </div>
+        <div className="absolute left-4 top-4 rounded-xl border border-border bg-white/95 p-3 text-xs text-muted-foreground shadow-sm">
+          <div className="text-sm font-semibold text-foreground">Correlation legend</div>
+          <p className="mt-1 leading-relaxed">Bubble size follows correlation strength. Select a row in the dashboard to pan here automatically.</p>
         </div>
-      </div>
+
+        <div className="absolute right-4 bottom-4 rounded-xl border border-border bg-white/95 p-3 text-sm text-foreground shadow-sm">
+          {userLocation ? (
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Your location</div>
+              <div className="font-mono text-lg">{userLocation.latitude.toFixed(3)}, {userLocation.longitude.toFixed(3)}</div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Share location to unlock nearby correlation intelligence.</p>
+          )}
+        </div>
       </div>
     </MapErrorBoundary>
   );

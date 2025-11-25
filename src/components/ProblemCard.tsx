@@ -11,9 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Calendar, MessageSquare } from "lucide-react";
 import { useVote } from "@/hooks/useVote";
 import { Problem } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface ProblemCardProps {
   problem: Problem;
+  currentUserId?: string | null;
   onShowOnMap?: (problem: Problem) => void;
 }
 
@@ -38,11 +40,14 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
-const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
+const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) => {
   const { mutate: vote, isPending: isVoting } = useVote();
+  const currentVote = problem.user_vote ?? null;
+  const isUpvoted = currentVote === 'upvote';
+  const isDownvoted = currentVote === 'downvote';
 
   const handleVote = (voteType: 'upvote' | 'downvote') => {
-    vote({ problemId: problem.id, voteType });
+    vote({ problemId: problem.id, voteType, currentUserId, currentVote });
   };
 
   const formatDate = (dateString: string) => {
@@ -55,7 +60,11 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
   };
 
   return (
-    <Card className="glass hover:shadow-lg transition-shadow flex flex-col h-full">
+    <Card className="relative flex h-full flex-col overflow-hidden border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:shadow-[0_20px_90px_-45px_rgba(99,102,241,0.65)]">
+      <div className="pointer-events-none absolute inset-0 opacity-40">
+        <div className="absolute -left-12 top-0 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-secondary/10 blur-3xl" />
+      </div>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
@@ -70,8 +79,10 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-foreground">{problem.votes_count ?? 0}</div>
-            <div className="text-xs text-muted-foreground">votes</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Net votes</div>
+            <div className="text-3xl font-black text-foreground drop-shadow-sm">
+              {problem.votes_count ?? 0}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -97,43 +108,58 @@ const ProblemCard = ({ problem, onShowOnMap }: ProblemCardProps) => {
         </div>
       </CardContent>
 
-      <CardFooter className="pt-3 border-t">
-        <div className="flex items-center gap-2 w-full">
-          <Button
-            variant="glass-success"
-            size="sm"
-            className="flex-1"
-            onClick={() => handleVote("upvote")}
-            disabled={isVoting}
-          >
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            Upvote
-          </Button>
-          <Button
-            variant="glass-destructive"
-            size="sm"
-            className="flex-1"
-            onClick={() => handleVote("downvote")}
-            disabled={isVoting}
-          >
-            <ThumbsDown className="h-4 w-4 mr-2" />
-            Downvote
-          </Button>
-          <Button variant="glass-primary" size="sm" className="flex-1" asChild>
-            <Link to={`/problem/${problem.id}`}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Comments {problem.comments_count ? `(${problem.comments_count})` : ''}
-            </Link>
-          </Button>
-          <Button
-            variant="glass-primary"
-            size="sm"
-            className="flex-1"
-            onClick={() => onShowOnMap && onShowOnMap(problem)}
-          >
-            <MapPin className="h-4 w-4 mr-2" />
-            Map
-          </Button>
+      <CardFooter className="relative z-10 border-t border-white/10 pt-4">
+        <div className="flex w-full flex-col gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="ghost"
+              size="lg"
+              className={cn(
+                "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
+                isUpvoted && "border-emerald-400/60 bg-emerald-500/15 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
+              )}
+              onClick={() => handleVote("upvote")}
+              disabled={isVoting}
+            >
+              <ThumbsUp className="mr-2 h-4 w-4" />
+              {isUpvoted ? "Upvoted" : "Upvote"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className={cn(
+                "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
+                isDownvoted && "border-rose-400/60 bg-rose-500/15 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.35)]"
+              )}
+              onClick={() => handleVote("downvote")}
+              disabled={isVoting}
+            >
+              <ThumbsDown className="mr-2 h-4 w-4" />
+              {isDownvoted ? "Downvoted" : "Downvote"}
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="ghost"
+              size="lg"
+              className="flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
+              asChild
+            >
+              <Link to={`/problem/${problem.id}`}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                {problem.comments_count ? `Comments (${problem.comments_count})` : "Comments"}
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
+              onClick={() => onShowOnMap?.(problem)}
+            >
+              <MapPin className="mr-2 h-4 w-4" />
+              Map
+            </Button>
+          </div>
         </div>
       </CardFooter>
     </Card>
