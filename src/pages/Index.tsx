@@ -16,7 +16,12 @@ import {
 
 import { motion } from "framer-motion";
 
-const EarthBG = "/earth-bg.jpeg";
+// === NEW EARTH-GLOW BACKGROUND ===
+const earthGlow: React.CSSProperties = {
+  background: `radial-gradient(circle at 50% 120%, rgba(98, 0, 234, 0.55), rgba(20, 0, 40, 0.95) 70%)`,
+  position: "relative",
+  overflow: "hidden",
+};
 
 const earthShape = (
   <div
@@ -28,8 +33,7 @@ const earthShape = (
       width: "140vh",
       height: "140vh",
       borderRadius: "50%",
-      background:
-        "radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%)",
+      background: "radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%)",
       filter: "blur(45px)",
       zIndex: 0,
     }}
@@ -86,30 +90,18 @@ const Index = () => {
   };
 
   return (
-    <div
-      className="min-h-screen text-foreground relative"
-      style={{
-        backgroundImage: `linear-gradient(to bottom, rgba(10,0,40,0.7), rgba(20,0,60,0.85)), url(${EarthBG})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      <div className="absolute inset-0 bg-black/40" />
+    <div className="min-h-screen text-foreground relative" style={earthGlow}>
       {earthShape}
 
       <div className="relative z-10">
         {/* HEADER */}
         <div
-          className="relative w-full bg-cover bg-center bg-no-repeat"
+          className="relative w-full"
           style={{
-            backgroundImage: `linear-gradient(to bottom, rgba(10,0,40,0.5), rgba(20,0,60,0.8)), url(${EarthBG})`,
             paddingTop: "1.5rem",
             paddingBottom: "2.5rem",
           }}
         >
-          <div className="absolute inset-0 bg-black/30"></div>
-
           <div className="relative z-10">
             <Header
               right={
