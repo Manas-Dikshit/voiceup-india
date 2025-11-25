@@ -20,8 +20,9 @@ import CorrelationMap from "@/components/maps/CorrelationMap";
 interface Profile {
   id: string;
   full_name: string;
-  points: number;
-  badges: string[];
+  points?: number;
+  badges?: string[];
+  [key: string]: any;
 }
 
 interface Problem {
@@ -32,8 +33,8 @@ interface Problem {
   votes_count: number;
   status: string;
   created_at: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   pincode?: string;
 }
 
@@ -86,13 +87,42 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
-  const { location, error: locationError } = useUserLocation();
+  const { position, error: locationError, loading: locationLoading } = useUserLocation();
   const [activeTab, setActiveTab] = useState("all");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [userVoteMap, setUserVoteMap] = useState<{[key: string]: 'up' | 'down'}>({});
   const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
 
   const queryClient = useQueryClient();
+
+  const normalizeProblem = (raw: any): Problem => {
+    let latitude: number | null = raw?.latitude ?? null;
+    let longitude: number | null = raw?.longitude ?? null;
+    const locationField = raw?.location;
+    if ((latitude === null || longitude === null) && locationField) {
+      if (typeof locationField === "string" && locationField.startsWith("POINT")) {
+        const inside = locationField.replace(/POINT\(|\)/g, "").trim();
+        const [lngStr, latStr] = inside.split(" ").filter(Boolean);
+        longitude = Number(lngStr);
+        latitude = Number(latStr);
+      } else if (typeof locationField === "object" && Array.isArray(locationField.coordinates)) {
+        longitude = Number(locationField.coordinates[0]);
+        latitude = Number(locationField.coordinates[1]);
+      }
+    }
+
+    return {
+      id: raw?.id ?? `problem-${Date.now()}-${Math.random()}`,
+      title: raw?.title ?? "Untitled problem",
+      description: raw?.description ?? "",
+      category: raw?.category ?? "other",
+      votes_count: Number(raw?.votes_count ?? 0),
+      status: raw?.status ?? "reported",
+      created_at: raw?.created_at ?? new Date().toISOString(),
+      latitude: Number.isFinite(latitude) ? Number(latitude) : null,
+      longitude: Number.isFinite(longitude) ? Number(longitude) : null,
+      pincode: raw?.pincode ?? undefined,
+    };
+  };
 
   const { data: problems, isLoading: problemsLoading } = useQuery({
     queryKey: ["problems"],
@@ -100,9 +130,9 @@ const Dashboard = () => {
   });
 
   const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery({
-    queryKey: ['nearbyProblems', location?.latitude, location?.longitude],
-    queryFn: () => fetchNearbyProblems(location!.latitude, location!.longitude),
-    enabled: !!location,
+    queryKey: ['nearbyProblems', position?.latitude, position?.longitude],
+    queryFn: () => fetchNearbyProblems(position!.latitude, position!.longitude),
+    enabled: !!position,
   });
 
   useEffect(() => {
@@ -162,7 +192,15 @@ const Dashboard = () => {
       return;
     }
 
-    setProfile(data);
+    const profileData = data as Partial<Profile> & Record<string, any>;
+    const normalizedProfile: Profile = {
+      id: (profileData.id ?? profileData.user_id ?? "") as string,
+      full_name: (profileData.full_name ?? profileData.username ?? "Citizen") as string,
+      points: profileData.points ?? 0,
+      badges: Array.isArray(profileData.badges) ? profileData.badges : [],
+      ...profileData,
+    };
+    setProfile(normalizedProfile);
   };
 
   const handleSignOut = async () => {
@@ -324,17 +362,19 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               ) : (
-                (Array.isArray(problems) ? problems : []).map((problem) => (
-                  <ProblemCard
-                    key={problem.id}
-                    problem={problem}
-                    userVote={userVoteMap[problem.id]}
-                    onShowOnMap={(p: Problem) => {
-                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
-                      setActiveTab('insights');
-                    }}
-                  />
-                ))
+                (Array.isArray(problems) ? problems : []).map((raw: any) => {
+                  const problem = normalizeProblem(raw);
+                  return (
+                    <ProblemCard
+                      key={problem.id}
+                      problem={problem}
+                      onShowOnMap={(p: Problem) => {
+                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setActiveTab('insights');
+                      }}
+                    />
+                  );
+                })
               )}
             </div>
           </TabsContent>
@@ -347,14 +387,14 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             )}
-            {!location && !locationError && (
+            {!position && !locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Getting your location...
                 </CardContent>
               </Card>
             )}
-            {location && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
+            {position && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   No problems found nearby.
@@ -368,19 +408,21 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             )}
-            {location && nearbyProblems.length > 0 && (
+            {position && nearbyProblems.length > 0 && (
               <div className="space-y-4">
-                {nearbyProblems.map((problem) => (
-                  <ProblemCard
-                    key={problem.id}
-                    problem={problem}
-                    userVote={userVoteMap[problem.id]}
-                    onShowOnMap={(p: Problem) => {
-                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
-                      setActiveTab('insights');
-                    }}
-                  />
-                ))}
+                {nearbyProblems.map((raw: any) => {
+                  const problem = normalizeProblem(raw);
+                  return (
+                    <ProblemCard
+                      key={problem.id}
+                      problem={problem}
+                      onShowOnMap={(p: Problem) => {
+                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setActiveTab('insights');
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -388,13 +430,13 @@ const Dashboard = () => {
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
               {(Array.isArray(problems) ? problems : [])
-                .sort((a: Problem, b: Problem) => b.votes_count - a.votes_count)
+                .map(normalizeProblem)
+                .sort((a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
                 .slice(0, 5)
                 .map((problem) => (
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    userVote={userVoteMap[problem.id]}
                     onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
