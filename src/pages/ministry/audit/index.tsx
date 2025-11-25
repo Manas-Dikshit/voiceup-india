@@ -15,7 +15,7 @@ const fetchAuditLogs = async () => {
       details,
       target_id,
       target_type,
-      profiles ( full_name, email )
+      profiles ( full_name )
     `)
     .order("created_at", { ascending: false });
 

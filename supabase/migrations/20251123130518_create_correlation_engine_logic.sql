@@ -113,16 +113,8 @@ BEGIN
 END;
 $$;
 
--- 3. Set up RLS for the new materialized view
-ALTER MATERIALIZED VIEW public.problem_correlations ENABLE ROW LEVEL SECURITY;
-
--- Allow anyone (citizens, ministries) to read the correlation data.
--- The data is aggregated and does not contain sensitive user information.
-CREATE POLICY "Allow public read access to problem correlations"
-ON public.problem_correlations
-FOR SELECT
-TO authenticated, anon
-USING (true);
+-- 3. Grant SELECT access to the materialized view to anon and authenticated roles
+GRANT SELECT ON public.problem_correlations TO anon, authenticated;
 
 -- Grant usage to the function
 GRANT EXECUTE ON FUNCTION public.calculate_problem_correlations() TO postgres, service_role;

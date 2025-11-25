@@ -1,4 +1,6 @@
 -- Ensure vote_problem keeps problems.votes_count synchronized with net votes
+DROP FUNCTION IF EXISTS public.vote_problem(uuid, vote_type);
+
 CREATE OR REPLACE FUNCTION public.vote_problem(
     p_problem_id uuid,
     p_vote_type vote_type

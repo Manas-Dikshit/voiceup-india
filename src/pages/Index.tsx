@@ -105,8 +105,7 @@ const Index = () => {
       />
 
       {/* HERO SECTION */}
-      <section  className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
- className="relative py-24 px-6 text-white text-center">
+      <section className="relative py-24 px-6 text-white text-center transition-all duration-300 hover:scale-[1.01] hover:brightness-110">
         <motion.div
           initial="hidden"
           animate="visible"
@@ -167,8 +166,7 @@ const Index = () => {
       </section>
 
       {/* STATS SECTION */}
-      <section  className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
- className="py-20 bg-purple-200/10 backdrop-blur-md">
+      <section className="py-20 bg-purple-200/10 backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:brightness-110">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
@@ -194,9 +192,7 @@ const Index = () => {
               transition={{ delay: i * 0.2, duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <Card className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:-translate-y-2 hover:border-purple-300/30"
- className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-purple-100/10 backdrop-blur-lg rounded-2xl hover:-translate-y-2 hover:shadow-purple-400/20 transition-all duration-300
-">
+              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-purple-100/10 backdrop-blur-lg rounded-2xl hover:-translate-y-2 hover:shadow-purple-400/20 transition-all duration-300">
                 <CardContent className="pt-6 text-center ">
                   <div className="mb-4 flex justify-center  ">{item.icon}</div>
                   <div className="text-4xl font-bold text-purple-100 mb-2">
@@ -211,8 +207,7 @@ const Index = () => {
       </section>
 
       {/* FEATURES SECTION */}
-<section className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
- className="py-24 px-6 bg-gradient-to-t from-purple-950 to-purple-900/60">
+<section className="py-24 px-6 bg-gradient-to-t from-purple-950 to-purple-900/60 transition-all duration-300 hover:scale-[1.01] hover:brightness-110">
   <div className="container mx-auto">
     <motion.div
       initial="hidden"
@@ -246,17 +241,29 @@ const Index = () => {
           title: "Track Progress",
           desc: "Follow real-time updates as problems move from report to resolution.",
         },
+        {
+          icon: <Award className="h-12 w-12 text-yellow-300" />,
+          title: "Get Rewarded",
+          desc: "Earn points and badges for your contributions to the community.",
+        },
       ].map((item, index) => (
-        <Card
+        <motion.div
           key={index}
-          className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.2, duration: 0.6 }}
+          viewport={{ once: true }}
         >
-          <CardContent>
-            {item.icon}
-            <h3 className="mt-4 text-xl font-semibold">{item.title}</h3>
-            <p className="text-gray-300 mt-2">{item.desc}</p>
-          </CardContent>
-        </Card>
+          <Card
+            className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl h-full"
+          >
+            <CardContent className="pt-6">
+              <div className="mb-4">{item.icon}</div>
+              <h3 className="text-xl font-bold text-purple-100 mb-2">{item.title}</h3>
+              <p className="text-purple-300">{item.desc}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
       ))}
     </div>
   </div>
