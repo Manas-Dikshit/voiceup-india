@@ -15,6 +15,30 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+// === NEW EARTH-GLOW BACKGROUND ===
+const earthGlow = {
+  background: `radial-gradient(circle at 50% 120%, rgba(98, 0, 234, 0.55), rgba(20, 0, 40, 0.95) 70%)`,
+  position: "relative",
+  overflow: "hidden",
+};
+
+const earthShape = (
+  <div
+    style={{
+      position: "absolute",
+      top: "40%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: "140vh",
+      height: "140vh",
+      borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%)",
+      filter: "blur(45px)",
+      zIndex: 0,
+    }}
+  />
+);
+
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i = 1) => ({
@@ -41,9 +65,7 @@ const Index = () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (session) {
-      navigate("/dashboard");
-    }
+    if (session) navigate("/dashboard");
   };
 
   const loadStats = async () => {
@@ -65,13 +87,15 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen text-foreground relative" style={earthGlow}>
+      {earthShape}
+
       <Header
         right={
           <div className="hidden sm:block">
             <Button
               variant="ghost"
-              className="text-sm font-medium hover:bg-primary/10"
+              className="text-sm font-medium hover:bg-purple-500/20 text-purple-200"
               onClick={() => navigate("/auth")}
             >
               Get Started
@@ -80,90 +104,85 @@ const Index = () => {
         }
       />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-24 px-6 bg-gradient-to-br from-primary via-indigo-600 to-accent text-white">
-        {/* Decorative Background Elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-56 h-56 bg-white/10 rounded-full blur-3xl animate-pulse" />
-        </div>
+      {/* HERO SECTION */}
+      <section  className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
+ className="relative py-24 px-6 text-white text-center">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fadeInUp}
+          className="flex justify-center mb-6"
+        >
+          <MapPin className="h-16 w-16 text-purple-300 drop-shadow-2xl" />
+        </motion.div>
 
-        <div className="container mx-auto relative z-10 text-center">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-            className="flex justify-center mb-6"
-          >
-            <MapPin className="h-16 w-16 text-white animate-bounce" />
-          </motion.div>
+        <motion.h1
+          variants={fadeInUp}
+          custom={1}
+          className="text-5xl md:text-7xl font-extrabold mb-4 text-purple-100"
+        >
+          VoiceUp
+        </motion.h1>
 
-          <motion.h1
-            variants={fadeInUp}
-            custom={1}
-            className="text-5xl md:text-7xl font-extrabold mb-4 leading-tight"
-          >
-            VoiceUp
-          </motion.h1>
+        <motion.p
+          variants={fadeInUp}
+          custom={2}
+          className="text-xl md:text-2xl text-purple-200 max-w-2xl mx-auto mb-6"
+        >
+          Empowering Citizens Through Digital Participation
+        </motion.p>
 
-          <motion.p
-            variants={fadeInUp}
-            custom={2}
-            className="text-xl md:text-2xl text-white/90 mb-6 max-w-2xl mx-auto"
-          >
-            Empowering Citizens Through Digital Participation
-          </motion.p>
+        <motion.p
+          variants={fadeInUp}
+          custom={3}
+          className="text-lg text-purple-300 mb-8 max-w-3xl mx-auto"
+        >
+          Report problems, propose solutions, vote on priorities, and track real-time
+          progress as we build a better India together.
+        </motion.p>
 
-          <motion.p
-            variants={fadeInUp}
-            custom={3}
-            className="text-lg text-white/80 mb-8 max-w-3xl mx-auto"
+        <motion.div
+          variants={fadeInUp}
+          custom={4}
+          className="flex flex-col sm:flex-row gap-4 justify-center"
+        >
+          <Button
+            size="lg"
+            className="bg-purple-200 text-purple-900 hover:bg-purple-100 px-8 rounded-full shadow-lg hover:scale-105 transition hover:scale-110 hover:shadow-purple-400/40 transition-all duration-300
+"
+            onClick={() => navigate("/auth")}
           >
-            Report problems, propose solutions, vote on priorities, and track
-            real-time progress as we build a better India together.
-          </motion.p>
+            Get Started <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
 
-          <motion.div
-            variants={fadeInUp}
-            custom={4}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-2 border-purple-300 text-purple-200 hover:bg-purple-300/10 px-8 rounded-full hover:scale-105 transition"
+            onClick={() => navigate("/dashboard")}
           >
-            <Button
-              size="lg"
-              className="bg-white text-primary hover:bg-white/90 text-lg px-8 rounded-full shadow-lg transition-transform hover:scale-105"
-              onClick={() => navigate("/auth")}
-            >
-              Get Started
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-2 border-white text-white hover:bg-white/10 text-lg px-8 rounded-full transition-transform hover:scale-105"
-              onClick={() => navigate("/dashboard")}
-            >
-              View Problems
-            </Button>
-          </motion.div>
-        </div>
+            View Problems
+          </Button>
+        </motion.div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-muted/40 backdrop-blur-md">
+      {/* STATS SECTION */}
+      <section  className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
+ className="py-20 bg-purple-200/10 backdrop-blur-md">
         <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
-              icon: <TrendingUp className="h-12 w-12 text-primary" />,
+              icon: <TrendingUp className="h-12 w-12 text-purple-300" />,
               value: stats.totalProblems,
               label: "Problems Reported",
             },
             {
-              icon: <CheckCircle className="h-12 w-12 text-success" />,
+              icon: <CheckCircle className="h-12 w-12 text-green-300" />,
               value: stats.totalSolutions,
               label: "Solutions Proposed",
             },
             {
-              icon: <Users className="h-12 w-12 text-secondary" />,
+              icon: <Users className="h-12 w-12 text-blue-300" />,
               value: stats.activeUsers,
               label: "Active Citizens",
             },
@@ -175,15 +194,15 @@ const Index = () => {
               transition={{ delay: i * 0.2, duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-white/80 backdrop-blur-md rounded-2xl">
-                <CardContent className="pt-6 text-center">
-                  <div className="mb-4 flex justify-center">{item.icon}</div>
-                  <div className="text-4xl font-bold mb-2">
+              <Card className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl transition-all duration-300 hover:shadow-purple-500/30 hover:-translate-y-2 hover:border-purple-300/30"
+ className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-purple-100/10 backdrop-blur-lg rounded-2xl hover:-translate-y-2 hover:shadow-purple-400/20 transition-all duration-300
+">
+                <CardContent className="pt-6 text-center ">
+                  <div className="mb-4 flex justify-center  ">{item.icon}</div>
+                  <div className="text-4xl font-bold text-purple-100 mb-2">
                     {item.value.toLocaleString()}
                   </div>
-                  <div className="text-muted-foreground font-medium">
-                    {item.label}
-                  </div>
+                  <div className="text-purple-300 font-medium">{item.label}</div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -191,105 +210,62 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 px-6 bg-gradient-to-t from-background to-muted">
-        <div className="container mx-auto">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            variants={fadeInUp}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              How VoiceUp Works
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              A transparent platform connecting citizens with real solutions
-            </p>
-          </motion.div>
+      {/* FEATURES SECTION */}
+<section className="transition-all duration-300 hover:scale-[1.01] hover:brightness-110"
+ className="py-24 px-6 bg-gradient-to-t from-purple-950 to-purple-900/60">
+  <div className="container mx-auto">
+    <motion.div
+      initial="hidden"
+      whileInView="visible"
+      variants={fadeInUp}
+      viewport={{ once: true }}
+      className="text-center mb-16"
+    >
+      <h2 className="text-4xl md:text-5xl font-extrabold text-purple-100 mb-4">
+        How VoiceUp Works
+      </h2>
+      <p className="text-lg text-purple-300 max-w-2xl mx-auto">
+        A transparent platform connecting citizens with real solutions
+      </p>
+    </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                icon: <MapPin className="h-12 w-12 text-primary" />,
-                title: "Report Problems",
-                desc: "Easily report local issues with photos, location, and detailed descriptions.",
-              },
-              {
-                icon: <Vote className="h-12 w-12 text-success" />,
-                title: "Vote & Discuss",
-                desc: "Vote on solutions and join discussions to prioritize community action.",
-              },
-              {
-                icon: <TrendingUp className="h-12 w-12 text-info" />,
-                title: "Track Progress",
-                desc: "Follow real-time updates as problems move from report to resolution.",
-              },
-              {
-                icon: <Award className="h-12 w-12 text-secondary" />,
-                title: "Earn Rewards",
-                desc: "Gain points and badges for contributing to your community’s improvement.",
-              },
-            ].map((feature, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.2 }}
-                viewport={{ once: true }}
-              >
-                <Card className="border-2 border-muted hover:border-primary/40 hover:shadow-xl transition-all rounded-2xl">
-                  <CardContent className="pt-6 text-center space-y-3">
-                    <div className="flex justify-center">{feature.icon}</div>
-                    <h3 className="text-xl font-semibold">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {feature.desc}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 px-6 bg-gradient-to-r from-primary to-accent text-white text-center">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          variants={fadeInUp}
-          viewport={{ once: true }}
-          className="container mx-auto"
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      {[
+        {
+          icon: <MapPin className="h-12 w-12 text-purple-300" />,
+          title: "Report Problems",
+          desc: "Easily report local issues with photos, location, and detailed descriptions.",
+        },
+        {
+          icon: <Vote className="h-12 w-12 text-green-300" />,
+          title: "Vote & Discuss",
+          desc: "Vote on solutions and join discussions to prioritize community action.",
+        },
+        {
+          icon: <TrendingUp className="h-12 w-12 text-blue-300" />,
+          title: "Track Progress",
+          desc: "Follow real-time updates as problems move from report to resolution.",
+        },
+      ].map((item, index) => (
+        <Card
+          key={index}
+          className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl"
         >
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-            Ready to Make a Difference?
-          </h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of citizens already making their voices heard
-          </p>
-          <Button
-            size="lg"
-            className="bg-white text-primary hover:bg-white/90 text-lg px-8 rounded-full shadow-lg hover:scale-105 transition-transform"
-            onClick={() => navigate("/auth")}
-          >
-            Join VoiceUp Today
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </motion.div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-10 px-4 bg-card border-t mt-8">
-        <div className="container mx-auto text-center text-muted-foreground">
-          <p className="text-sm">
-            © 2025 VoiceUp. Empowering citizens through digital participation.
-          </p>
-        </div>
-      </footer>
+          <CardContent>
+            {item.icon}
+            <h3 className="mt-4 text-xl font-semibold">{item.title}</h3>
+            <p className="text-gray-300 mt-2">{item.desc}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
-  );
+  </div>
+</section>
+</div>
+);
 };
 
 export default Index;
+
+
+
