@@ -4,7 +4,6 @@ import Header from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-const EarthBG = "/earth-bg.jpeg";
 
 import {
   MapPin,
@@ -14,7 +13,10 @@ import {
   ArrowRight,
   CheckCircle,
 } from "lucide-react";
+
 import { motion } from "framer-motion";
+
+const EarthBG = "/earth-bg.jpeg";
 
 const earthShape = (
   <div
@@ -26,7 +28,8 @@ const earthShape = (
       width: "140vh",
       height: "140vh",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%)",
+      background:
+        "radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%)",
       filter: "blur(45px)",
       zIndex: 0,
     }}
@@ -92,12 +95,11 @@ const Index = () => {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="absolute inset-0 bg-black/40"></div>
+      <div className="absolute inset-0 bg-black/40" />
       {earthShape}
 
       <div className="relative z-10">
-
-        {/* HEADER WITH BACKGROUND IMAGE */}
+        {/* HEADER */}
         <div
           className="relative w-full bg-cover bg-center bg-no-repeat"
           style={{
@@ -157,8 +159,8 @@ const Index = () => {
             custom={3}
             className="text-lg text-purple-300 mb-8 max-w-3xl mx-auto"
           >
-            Report problems, propose solutions, vote on priorities, and track real-time
-            progress as we build a better India together.
+            Report problems, propose solutions, vote on priorities, and track
+            real-time progress as we build a better India together.
           </motion.p>
 
           <motion.div
@@ -218,7 +220,9 @@ const Index = () => {
                     <div className="text-4xl font-bold text-purple-100 mb-2">
                       {item.value.toLocaleString()}
                     </div>
-                    <div className="text-purple-300 font-medium">{item.label}</div>
+                    <div className="text-purple-300 font-medium">
+                      {item.label}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -245,39 +249,37 @@ const Index = () => {
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center mx-auto max-w-6xl">
-  {[
-    {
-      icon: <MapPin className="h-12 w-12 text-purple-300" />,
-      title: "Report Problems",
-      desc: "Easily report local issues with photos, location, and detailed descriptions.",
-    },
-    {
-      icon: <Vote className="h-12 w-12 text-green-300" />,
-      title: "Vote & Discuss",
-      desc: "Vote on solutions and join discussions to prioritize community action.",
-    },
-    {
-      icon: <TrendingUp className="h-12 w-12 text-blue-300" />,
-      title: "Track Progress",
-      desc: "Follow real-time updates as problems move from report to resolution.",
-    },
-  ].map((item, index) => (
-    <Card
-      key={index}
-      className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl"
-    >
-      <CardContent>
-        {item.icon}
-        <h3 className="mt-4 text-xl font-semibold">{item.title}</h3>
-        <p className="text-gray-300 mt-2">{item.desc}</p>
-      </CardContent>
-    </Card>
-  ))}
-</div>
-
+              {[
+                {
+                  icon: <MapPin className="h-12 w-12 text-purple-300" />,
+                  title: "Report Problems",
+                  desc: "Easily report local issues with photos, location, and detailed descriptions.",
+                },
+                {
+                  icon: <Vote className="h-12 w-12 text-green-300" />,
+                  title: "Vote & Discuss",
+                  desc: "Vote on solutions and join discussions to prioritize community action.",
+                },
+                {
+                  icon: <TrendingUp className="h-12 w-12 text-blue-300" />,
+                  title: "Track Progress",
+                  desc: "Follow real-time updates as problems move from report to resolution.",
+                },
+              ].map((item, index) => (
+                <Card
+                  key={index}
+                  className="bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl"
+                >
+                  <CardContent>
+                    {item.icon}
+                    <h3 className="mt-4 text-xl font-semibold">{item.title}</h3>
+                    <p className="text-gray-300 mt-2">{item.desc}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
-
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export type AuditLog = {
   target_type: string;
   profiles: {
     full_name: string | null;
-    email: string | null;
+    email?: string | null;
   } | null;
 };
 
@@ -39,7 +39,9 @@ export const columns: ColumnDef<AuditLog>[] = [
     header: "User",
     cell: ({ row }) => {
       const user = row.original.profiles;
-      return user ? `${user.full_name} (${user.email})` : "System";
+      if (!user) return "System";
+      const email = user.email ? ` (${user.email})` : "";
+      return `${user.full_name}${email}`;
     },
   },
   {

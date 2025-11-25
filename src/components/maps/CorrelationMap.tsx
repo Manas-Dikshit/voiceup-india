@@ -219,6 +219,24 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const { data: userVotes = {} } = useQuery({
+    queryKey: ['userVotes', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('votes')
+        .select('votable_id, vote_type')
+        .eq('user_id', user!.id)
+        .eq('votable_type', 'problem');
+      if (error) throw new Error(error.message);
+      return (data || []).reduce((acc, row) => {
+        acc[row.votable_id as string] = row.vote_type as 'upvote' | 'downvote';
+        return acc;
+      }, {} as Record<string, 'upvote' | 'downvote'>);
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 30,
+  });
+
   // Fetch votes for the problems rendered on the map
   const problemIds = (problemMarkers || []).map((p) => p.id).filter(Boolean);
   const { data: votesForMap = [] } = useQuery({
@@ -470,6 +488,9 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
             }
 
             const counts = voteCountsByProblem[p.id] || { up: 0, down: 0 };
+            const currentVote = userVotes?.[p.id] ?? null;
+            const isUpvoted = currentVote === 'upvote';
+            const isDownvoted = currentVote === 'downvote';
             const titleRaw = `(#${index}) ${p.title || ''}`;
             const titleTrunc = titleRaw.length > 30 ? titleRaw.slice(0, 27) + '...' : titleRaw;
             const net = (counts.up || 0) - (counts.down || 0);
@@ -526,31 +547,33 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant={isUpvoted ? 'default' : 'secondary'}
                           className="w-full"
                           onClick={() =>
                             voteMutation.mutate({
                               problemId: p.id,
                               voteType: 'upvote',
                               currentUserId: user?.id,
+                              currentVote,
                             })
                           }
                         >
-                          👍 Upvote
+                          👍 {isUpvoted ? 'Upvoted' : 'Upvote'}
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant={isDownvoted ? 'default' : 'outline'}
                           className="w-full"
                           onClick={() =>
                             voteMutation.mutate({
                               problemId: p.id,
                               voteType: 'downvote',
                               currentUserId: user?.id,
+                              currentVote,
                             })
                           }
                         >
-                          👎 Downvote
+                          👎 {isDownvoted ? 'Downvoted' : 'Downvote'}
                         </Button>
                       </div>
                     </CardContent>
