@@ -33,10 +33,11 @@ class MapErrorBoundary extends React.Component<any, { hasError: boolean; error?:
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useVote } from '@/hooks/useVote';
-import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Tag, Clock, TrendingUp, ThumbsUp, ThumbsDown, Users } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 // Fix for default marker icon issue with bundlers like Webpack/Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -128,11 +129,21 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   });
 
   // Fetch nearby problems to show as markers
+<<<<<<< Updated upstream
   const fetchNearbyProblemsForMap = async (latitude: number, longitude: number) => {
     const { data, error } = await supabase.rpc('nearby_problems', {
         lat: latitude,
         lng: longitude
     });
+=======
+  const fetchNearbyProblemsForMap = async (latitude: number, longitude: number, radiusMeters: number) => {
+    const { data, error } = await (supabase as any).rpc('get_nearby_problems_for_map', {
+      p_lat: latitude,
+      p_lng: longitude,
+      p_radius_meters: radiusMeters,
+    });
+
+>>>>>>> Stashed changes
     if (error) throw new Error(error.message);
     const rows = (data || []) as any[];
 
@@ -219,11 +230,9 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
     queryKey: ['votesForMap', ...problemIds],
     queryFn: async () => {
       if (!problemIds.length) return [];
-      const { data, error } = await supabase
-        .from('votes')
-        .select('votable_id, vote_type')
-        .eq('votable_type', 'problem')
-        .in('votable_id', problemIds as any[]);
+      const { data, error } = await (supabase as any).rpc('get_votes_for_problems', {
+        p_problem_ids: problemIds,
+      });
       if (error) throw new Error(error.message);
       return data || [];
     },
@@ -233,10 +242,8 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   // build a map of counts by problem id
   const voteCountsByProblem: Record<string, { up: number; down: number }> = {};
   (votesForMap || []).forEach((v: any) => {
-    const id = v.votable_id;
-    if (!voteCountsByProblem[id]) voteCountsByProblem[id] = { up: 0, down: 0 };
-    if (v.vote_type === 'upvote') voteCountsByProblem[id].up += 1;
-    if (v.vote_type === 'downvote') voteCountsByProblem[id].down += 1;
+    const problemId = v.problem_id || v.id;
+    voteCountsByProblem[problemId] = { up: v.upvotes || v.up || 0, down: v.downvotes || v.down || 0 };
   });
 
   const mapCenter: [number, number] = userLocation ? [userLocation.latitude, userLocation.longitude] : defaultCenter;
@@ -417,17 +424,36 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
               icon={customIcon}
             >
               <Popup>
-                <Card className="border-none shadow-none">
-                  <CardHeader className="p-2">
-                    <CardTitle className="text-base">Correlation Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 text-sm">
-                    <p><strong>Categories:</strong> {c.category_a} &harr; {c.category_b}</p>
-                    <p><strong>Score:</strong> {c.correlation_score.toFixed(2)}</p>
-                    <p><strong>Co-occurrences:</strong> {c.co_occurrence}</p>
-                  </CardContent>
-                </Card>
+                <div className="w-80 rounded-2xl border border-border bg-background/95 p-4 text-foreground shadow-lg backdrop-blur-sm">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-primary">
+                      Problem Correlation
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Showing correlation between two problem categories in this area.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{c.category_a}</Badge>
+                      <span className="text-muted-foreground">↔</span>
+                      <Badge variant="secondary">{c.category_b}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <strong>Score:</strong>
+                      <span className="font-mono text-base">{c.correlation_score.toFixed(2)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <strong>Co-occurrences:</strong>
+                      <span className="font-mono text-base">{c.co_occurrence}</span>
+                    </div>
+                  </div>
+                </div>
               </Popup>
+
             </Marker>
           );
         })
@@ -535,6 +561,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
       })()}
       </MapContainer>
 
+<<<<<<< Updated upstream
       {/* Debug overlay: shows last focus and normalized coords for troubleshooting (rendered outside MapContainer) */}
       <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 9999 }}>
         <div className="bg-white/80 text-xs p-2 rounded shadow max-w-xs">
@@ -550,6 +577,106 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
       </div>
       </div>
     </MapErrorBoundary>
+=======
+          return (
+            <Marker
+              key={`problem-${p.id}`}
+              position={position}
+              icon={problemIcon}
+              ref={(m) => {
+                // store ref in the markerRefs map for later popup opening
+                try {
+                  if (m) {
+                    // react-leaflet v4 provides the underlying Leaflet element via m as any
+                    markerRefs.current = markerRefs.current || {};
+                    markerRefs.current[p.id] = (m as any)?.leafletElement ?? (m as any);
+                  } else if (markerRefs.current) {
+                    delete markerRefs.current[p.id];
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              }}
+            >
+              <Popup>
+                <div className="w-80 rounded-2xl border border-border bg-background/95 p-4 text-foreground shadow-lg backdrop-blur-sm">
+                  <div className="mb-4">
+                    <button
+                      className="text-left text-lg font-bold text-primary transition-colors hover:text-primary/80"
+                      onClick={() => navigate(`/problems/${p.id}`)}
+                    >
+                      {p.title}
+                    </button>
+                    <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                      {p.description}
+                    </p>
+                  </div>
+
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                      <Badge variant="secondary">{p.category}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <Badge variant={p.status === 'resolved' ? 'secondary' : 'outline'}>
+                        {p.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {formatDistanceToNow(new Date(p.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'upvote' })}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/10 py-2 text-sm font-medium text-emerald-500 transition-colors hover:bg-emerald-500/20"
+                      >
+                        <ThumbsUp className="h-4 w-4" />
+                        <span>Upvote</span>
+                      </button>
+                      <div className="flex h-9 w-14 items-center justify-center rounded-lg bg-muted text-sm font-bold">
+                        {counts.up}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'downvote' })}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-500/10 py-2 text-sm font-medium text-rose-500 transition-colors hover:bg-rose-500/20"
+                      >
+                        <ThumbsDown className="h-4 w-4" />
+                        <span>Downvote</span>
+                      </button>
+                      <div className="flex h-9 w-14 items-center justify-center rounded-lg bg-muted text-sm font-bold">
+                        {counts.down}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-border pt-3 text-center text-sm font-bold">
+                    Net Impact:{" "}
+                    <span
+                      className={
+                        net >= 0 ? "text-emerald-500" : "text-rose-500"
+                      }
+                    >
+                      {net >= 0 ? "+" : ""}
+                      {net}
+                    </span>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })
+      )}
+    </MapContainer>
+>>>>>>> Stashed changes
   );
 };
 

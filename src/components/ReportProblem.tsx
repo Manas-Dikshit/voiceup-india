@@ -161,7 +161,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border/40 bg-gradient-to-b from-card/70 to-background/60 backdrop-blur-xl shadow-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-b from-background/80 to-background/40 backdrop-blur-xl shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold text-foreground">
             Report a Problem
@@ -245,8 +245,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
           {/* Detect Location */}
           <Button
             type="button"
-            variant="secondary"
-            className="w-full"
+            className="w-full rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
             onClick={getLocation}
             disabled={locationLoading}
           >
@@ -295,12 +294,12 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
           <div className="space-y-2">
             <Label>Attachment *</Label>
             <div
-              className="relative flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-muted-foreground/40 rounded-xl cursor-pointer hover:bg-muted/10 transition"
+              className="relative flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:bg-white/5 hover:border-white/30 transition backdrop-blur-sm bg-white/2"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="h-6 w-6 mb-2 text-muted-foreground" />
+              <Upload className="h-6 w-6 mb-2 text-primary/70" />
               <p className="text-sm text-muted-foreground">
-                {attachment ? "File Selected" : "Click to upload or drag & drop"}
+                {attachment ? "✓ File Selected" : "Click to upload or drag & drop"}
               </p>
               <input
                 ref={fileInputRef}
@@ -354,11 +353,11 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
           </div>
 
           {/* Footer */}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="rounded-lg bg-gradient-to-r from-primary to-primary/80 border border-primary/50 hover:shadow-lg transition-all">
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...

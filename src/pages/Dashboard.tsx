@@ -20,22 +20,36 @@ import CorrelationMap from "@/components/maps/CorrelationMap";
 interface Profile {
   id: string;
   full_name: string;
+<<<<<<< Updated upstream
+=======
+  // These come from a view/function; keep them optional to match Supabase row
+>>>>>>> Stashed changes
   points?: number;
   badges?: string[];
   [key: string]: any;
 }
 
+// Shape used in Dashboard; matches "problems" table plus optional geo helpers
 interface Problem {
   id: string;
   title: string;
   description: string;
   category: string;
-  votes_count: number;
   status: string;
   created_at: string;
+<<<<<<< Updated upstream
   latitude: number | null;
   longitude: number | null;
   pincode?: string;
+=======
+  city?: string;
+  votes_count: number; // Required for sorting
+  latitude: number | null;
+  longitude: number | null;
+  pincode?: string | null;
+  location?: any; // geo field from RPC
+  [key: string]: any;
+>>>>>>> Stashed changes
 }
 
 interface ContributionMetrics {
@@ -134,7 +148,11 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
+<<<<<<< Updated upstream
   const { position, error: locationError, loading: locationLoading } = useUserLocation();
+=======
+  const { position, error: locationError } = useUserLocation();
+>>>>>>> Stashed changes
   const [activeTab, setActiveTab] = useState("all");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
@@ -181,6 +199,7 @@ const Dashboard = () => {
     queryKey: ['nearbyProblems', position?.latitude, position?.longitude],
     queryFn: () => fetchNearbyProblems(position!.latitude, position!.longitude),
     enabled: !!position,
+<<<<<<< Updated upstream
   });
 
   const { data: totalProblemsCount = 0 } = useQuery({
@@ -192,6 +211,8 @@ const Dashboard = () => {
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
+=======
+>>>>>>> Stashed changes
   });
 
   useEffect(() => {
@@ -419,13 +440,21 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+<<<<<<< Updated upstream
               <div className="text-2xl font-bold">{badgesDisplay.length}</div>
+=======
+              <div className="text-2xl font-bold">
+                {profile?.badges ? profile.badges.length : 0}
+              </div>
+>>>>>>> Stashed changes
               <div className="flex flex-wrap gap-2 mt-2">
                 {badgesDisplay.map((badge: string, i: number) => (
                   <span key={i} className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border">{badge}</span>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Unlock more achievements by contributing.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Unlock more achievements by contributing.
+              </p>
             </CardContent>
           </Card>
 
@@ -473,16 +502,39 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               ) : (
+<<<<<<< Updated upstream
                 (Array.isArray(problems) ? problems : []).map((raw: any) => {
                   const problem = normalizeProblem(raw);
+=======
+                (problems || []).map((raw: any) => {
+                  const problem: Problem = {
+                    ...raw,
+                    votes_count: raw.votes_count ?? 0,
+                    status: raw.status ?? "reported",
+                    latitude: raw.latitude ?? null,
+                    longitude: raw.longitude ?? null,
+                  };
+
+>>>>>>> Stashed changes
                   return (
                     <ProblemCard
                       key={problem.id}
                       problem={problem}
+<<<<<<< Updated upstream
                       onShowOnMap={(p: Problem) => {
                         setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                         setActiveTab('insights');
                       }}
+=======
+                      onShowOnMap={(p) =>
+                        setMapFocus({
+                          lat: p.latitude ?? null,
+                          lng: p.longitude ?? null,
+                          id: p.id,
+                          pincode: (p as any).pincode ?? undefined,
+                        })
+                      }
+>>>>>>> Stashed changes
                     />
                   );
                 })
@@ -522,7 +574,17 @@ const Dashboard = () => {
             {position && nearbyProblems.length > 0 && (
               <div className="space-y-4">
                 {nearbyProblems.map((raw: any) => {
+<<<<<<< Updated upstream
                   const problem = normalizeProblem(raw);
+=======
+                  const problem: Problem = {
+                    ...raw,
+                    votes_count: raw.votes_count ?? 0,
+                    status: raw.status ?? "reported",
+                    latitude: raw.latitude ?? null,
+                    longitude: raw.longitude ?? null,
+                  };
+>>>>>>> Stashed changes
                   return (
                     <ProblemCard
                       key={problem.id}
@@ -541,6 +603,7 @@ const Dashboard = () => {
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
               {(Array.isArray(problems) ? problems : [])
+<<<<<<< Updated upstream
                 .map(normalizeProblem)
                 .sort((a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
                 .slice(0, 5)
@@ -554,6 +617,29 @@ const Dashboard = () => {
                     }}
                   />
                 ))}
+=======
+                .sort((a: any, b: any) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
+                .slice(0, 5)
+                .map((raw: any) => {
+                  const problem: Problem = {
+                    ...raw,
+                    votes_count: raw.votes_count ?? 0,
+                    status: raw.status ?? "reported",
+                    latitude: raw.latitude ?? null,
+                    longitude: raw.longitude ?? null,
+                  };
+                  return (
+                    <ProblemCard
+                      key={problem.id}
+                      problem={problem}
+                      onShowOnMap={(p: Problem) => {
+                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setActiveTab('insights');
+                      }}
+                    />
+                  );
+                })}
+>>>>>>> Stashed changes
               </div>
           </TabsContent>
 
