@@ -16,27 +16,63 @@ import Chatbot, { Message } from "@/components/Chatbot";
 import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
+import { Problem } from "@/lib/types";
 
 interface Profile {
   id: string;
   full_name: string;
+  // These come from a view/function; keep them optional to match Supabase row
   points?: number;
   badges?: string[];
   [key: string]: any;
 }
 
-interface Problem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  votes_count: number;
-  status: string;
-  created_at: string;
-  latitude: number | null;
-  longitude: number | null;
-  pincode?: string;
+interface ContributionMetrics {
+  reportsCount: number;
+  commentsCount: number;
+  votesCount: number;
 }
+
+interface ImpactStats extends ContributionMetrics {
+  points: number;
+  badges: string[];
+}
+
+const BADGE_RULES = [
+  {
+    id: "first-action",
+    label: "First Contribution",
+    predicate: (stats: ImpactStats) =>
+      stats.reportsCount + stats.commentsCount + stats.votesCount >= 1,
+  },
+  {
+    id: "reporter",
+    label: "Active Reporter",
+    predicate: (stats: ImpactStats) => stats.reportsCount >= 3,
+  },
+  {
+    id: "voter",
+    label: "Community Voter",
+    predicate: (stats: ImpactStats) => stats.votesCount >= 10,
+  },
+  {
+    id: "conversation",
+    label: "Conversation Starter",
+    predicate: (stats: ImpactStats) => stats.commentsCount >= 5,
+  },
+  {
+    id: "change-maker",
+    label: "Change Maker",
+    predicate: (stats: ImpactStats) => stats.points >= 50,
+  },
+];
+
+const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []) => {
+  const earned = BADGE_RULES
+    .filter((rule) => rule.predicate(stats))
+    .map((rule) => rule.label);
+  return Array.from(new Set([...(existingBadges ?? []), ...earned]));
+};
 
 const fetchProblems = async () => {
   const { data, error } = await supabase
@@ -91,6 +127,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
+  const [impactStats, setImpactStats] = useState<ImpactStats | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -116,6 +153,7 @@ const Dashboard = () => {
       description: raw?.description ?? "",
       category: raw?.category ?? "other",
       votes_count: Number(raw?.votes_count ?? 0),
+      comments_count: Number(raw?.comments_count ?? 0),
       status: raw?.status ?? "reported",
       created_at: raw?.created_at ?? new Date().toISOString(),
       latitude: Number.isFinite(latitude) ? Number(latitude) : null,
@@ -135,6 +173,17 @@ const Dashboard = () => {
     enabled: !!position,
   });
 
+  const { data: totalProblemsCount = 0 } = useQuery({
+    queryKey: ['problemCount'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('problems')
+        .select('id', { count: 'exact', head: true });
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+  });
+
   useEffect(() => {
     checkAuth();
 
@@ -146,6 +195,7 @@ const Dashboard = () => {
         () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
         }
       )
       .subscribe();
@@ -158,6 +208,7 @@ const Dashboard = () => {
         () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
         }
       )
       .subscribe();
@@ -176,7 +227,10 @@ const Dashboard = () => {
       return;
     }
 
-    await loadProfile(session.user.id);
+    const loadedProfile = await loadProfile(session.user.id);
+    if (loadedProfile) {
+      await loadImpactStats(loadedProfile.id, loadedProfile.badges ?? []);
+    }
     setLoading(false);
   };
 
@@ -189,7 +243,7 @@ const Dashboard = () => {
 
     if (error) {
       console.error("Error loading profile:", error);
-      return;
+      return null;
     }
 
     const profileData = data as Partial<Profile> & Record<string, any>;
@@ -201,6 +255,42 @@ const Dashboard = () => {
       ...profileData,
     };
     setProfile(normalizedProfile);
+    return normalizedProfile;
+  };
+
+  const loadImpactStats = async (userId: string, existingBadges: string[] = []) => {
+    try {
+      const [reported, commented, voted] = await Promise.all([
+        supabase.from('problems').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('comments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('votes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      ]);
+
+      if (reported.error) throw reported.error;
+      if (commented.error) throw commented.error;
+      if (voted.error) throw voted.error;
+
+      const reportsCount = reported.count ?? 0;
+      const commentsCount = commented.count ?? 0;
+      const votesCount = voted.count ?? 0;
+
+      const points = reportsCount * 5 + commentsCount * 2 + votesCount;
+      const badges = deriveBadges(
+        { reportsCount, commentsCount, votesCount, points, badges: [] },
+        existingBadges
+      );
+
+      setImpactStats({ reportsCount, commentsCount, votesCount, points, badges });
+    } catch (error) {
+      console.error('Error loading citizen impact stats:', error);
+      setImpactStats((prev) => prev ?? {
+        reportsCount: 0,
+        commentsCount: 0,
+        votesCount: 0,
+        points: profile?.points ?? 0,
+        badges: existingBadges,
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -216,6 +306,10 @@ const Dashboard = () => {
     setShowReportForm(false);
     queryClient.invalidateQueries({ queryKey: ['problems'] });
     queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
+    queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+    if (profile?.id) {
+      loadImpactStats(profile.id, impactStats?.badges ?? profile.badges ?? []);
+    }
   };
 
   const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
@@ -263,6 +357,13 @@ const Dashboard = () => {
     );
   }
 
+  const pointsDisplay = impactStats?.points ?? profile?.points ?? 0;
+  const badgesDisplay = (impactStats?.badges?.length ? impactStats.badges : profile?.badges) ?? [];
+  const activeProblemsCount = position
+    ? (nearbyProblemsLoading && !locationError ? null : nearbyProblems.length)
+    : totalProblemsCount ?? (Array.isArray(problems) ? problems.length : 0);
+  const activeProblemsLabel = position ? "In your area" : "Across VoiceUp";
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -272,7 +373,7 @@ const Dashboard = () => {
               <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Award className="h-3 w-3" />
-                <span>{profile?.points} points</span>
+                <span>{pointsDisplay} points</span>
               </div>
             </div>
             <NotificationBell />
@@ -295,7 +396,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.points ?? 0}</div>
+              <div className="text-2xl font-bold">{pointsDisplay}</div>
               <p className="text-xs text-muted-foreground mt-1">Points earned by voting, reporting, and commenting.</p>
             </CardContent>
           </Card>
@@ -308,13 +409,15 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.badges?.length ?? 0}</div>
+              <div className="text-2xl font-bold">{badgesDisplay.length}</div>
               <div className="flex flex-wrap gap-2 mt-2">
-                {(profile?.badges ?? []).map((badge: string, i: number) => (
+                {badgesDisplay.map((badge: string, i: number) => (
                   <span key={i} className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border">{badge}</span>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Unlock more achievements by contributing.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Unlock more achievements by contributing.
+              </p>
             </CardContent>
           </Card>
 
@@ -326,8 +429,8 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{(Array.isArray(problems) ? problems.length : 0)}</div>
-              <p className="text-xs text-muted-foreground mt-1">In your area</p>
+              <div className="text-2xl font-bold">{activeProblemsCount ?? '—'}</div>
+              <p className="text-xs text-muted-foreground mt-1">{activeProblemsLabel}</p>
             </CardContent>
           </Card>
         </div>

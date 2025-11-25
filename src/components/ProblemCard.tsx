@@ -10,19 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, ThumbsDown, MapPin, Calendar, MessageSquare } from "lucide-react";
 import { useVote } from "@/hooks/useVote";
-
-interface Problem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  votes_count: number;
-  status: string;
-  created_at: string;
-  latitude: number;
-  longitude: number;
-  comments_count?: number; // Optional comments count
-}
+import { Problem } from "@/lib/types";
 
 interface ProblemCardProps {
   problem: Problem;
