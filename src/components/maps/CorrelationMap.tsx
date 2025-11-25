@@ -1,7 +1,35 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+
+// Simple Error Boundary to surface runtime errors inside the map component
+class MapErrorBoundary extends React.Component<any, { hasError: boolean; error?: Error | null }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: any) {
+    console.error('CorrelationMap caught error:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 text-sm text-red-600">
+          <div className="font-semibold">Map failed to load</div>
+          <div>{this.state.error?.message}</div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -100,36 +128,87 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   });
 
   // Fetch nearby problems to show as markers
-  const fetchNearbyProblemsForMap = async (latitude: number, longitude: number, radiusMeters: number) => {
-    // approximate degree delta
-    const radiusKm = radiusMeters / 1000;
-    const latDelta = radiusKm / 110.574; // degrees per km
-    const lngDelta = radiusKm / (111.320 * Math.cos((latitude * Math.PI) / 180));
-
-    const minLat = latitude - latDelta;
-    const maxLat = latitude + latDelta;
-    const minLng = longitude - lngDelta;
-    const maxLng = longitude + lngDelta;
-
-    const { data, error } = await supabase
-      .from('problems')
-      .select('*')
-      .gte('latitude', minLat)
-      .lte('latitude', maxLat)
-      .gte('longitude', minLng)
-      .lte('longitude', maxLng)
-      .order('created_at', { ascending: false })
-      .limit(200);
-
+  const fetchNearbyProblemsForMap = async (latitude: number, longitude: number) => {
+    const { data, error } = await supabase.rpc('nearby_problems', {
+        lat: latitude,
+        lng: longitude
+    });
     if (error) throw new Error(error.message);
-    return (data || []) as any[];
+    const rows = (data || []) as any[];
+
+    const uniqueRows = [];
+    const seenIds = new Set();
+    rows.forEach(r => {
+        if (!seenIds.has(r.id)) {
+            seenIds.add(r.id);
+            uniqueRows.push(r);
+        }
+    });
+
+    // Normalize latitude/longitude from 'location' column if needed.
+    return uniqueRows.map((r) => {
+        const out: any = { ...r };
+        if ((!out.latitude || !out.longitude) && out.location) {
+            const loc = out.location;
+            if (loc && typeof loc === 'object' && Array.isArray(loc.coordinates)) {
+                out.longitude = Number(loc.coordinates[0]);
+                out.latitude = Number(loc.coordinates[1]);
+            } else if (typeof loc === 'string' && loc.startsWith('POINT')) {
+                const inside = loc.replace(/POINT\(|\)/g, '').trim();
+                const [lngStr, latStr] = inside.split(' ').filter(Boolean);
+                out.longitude = Number(lngStr);
+                out.latitude = Number(latStr);
+            }
+        }
+        return out;
+    });
   };
 
-  const { data: problemMarkers = [], isLoading: problemsLoading } = useQuery({
+  const { data: problemMarkersRaw = [], isLoading: problemsLoading } = useQuery({
     queryKey: ['nearbyProblemsMap', userLocation?.latitude, userLocation?.longitude],
-    queryFn: () => fetchNearbyProblemsForMap(userLocation!.latitude, userLocation!.longitude, 20000), // 20km
+    queryFn: () => fetchNearbyProblemsForMap(userLocation!.latitude, userLocation!.longitude),
     enabled: !!userLocation,
   });
+
+  // Fetch the focused problem explicitly to ensure it's on the map
+  const { data: focusedProblem } = useQuery({
+    queryKey: ['problem', focus?.id],
+    queryFn: async () => {
+        if (!focus?.id) return null;
+        const { data, error } = await supabase.from('problems').select('*').eq('id', focus.id).single();
+        if (error) {
+            console.error('Failed to fetch focused problem', error);
+            return null;
+        }
+        // Manually normalize coordinates, similar to fetchNearbyProblemsForMap
+        const out: any = { ...data };
+        if ((!out.latitude || !out.longitude) && out.location) {
+            const loc = out.location;
+            if (loc && typeof loc === 'object' && Array.isArray(loc.coordinates)) {
+                out.longitude = Number(loc.coordinates[0]);
+                out.latitude = Number(loc.coordinates[1]);
+            } else if (typeof loc === 'string' && loc.startsWith('POINT')) {
+                const inside = loc.replace(/POINT\(|\)/g, '').trim();
+                const [lngStr, latStr] = inside.split(' ').filter(Boolean);
+                out.longitude = Number(lngStr);
+                out.latitude = Number(latStr);
+            }
+        }
+        return out;
+    },
+    enabled: !!focus?.id,
+  });
+
+  const problemMarkers = React.useMemo(() => {
+    const combined = [...problemMarkersRaw];
+    if (focusedProblem) {
+        if (!combined.some(p => p.id === focusedProblem.id)) {
+            combined.push(focusedProblem);
+        }
+    }
+    // The de-duplication logic is now inside fetchNearbyProblemsForMap, but this extra check is fine.
+    return combined;
+  }, [problemMarkersRaw, focusedProblem]);
 
   const voteMutation = useVote();
   const navigate = useNavigate();
@@ -165,6 +244,36 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   // marker refs map (must be a hook and called unconditionally to keep hook order stable)
   const markerRefs = React.useRef<Record<string, any> | null>({});
 
+  // Debugging state: store last processed focus data for an on-screen overlay
+  const [debugFocus, setDebugFocus] = useState<any>(null);
+
+  // Utility: validate and normalize lat/lng. Some DB rows may have swapped values or strings.
+  const normalizeCoords = (rawLat: any, rawLng: any) => {
+    const latNum = rawLat == null ? null : Number(rawLat);
+    const lngNum = rawLng == null ? null : Number(rawLng);
+
+    const isValid = (lat: number | null, lng: number | null) => {
+      if (lat == null || lng == null) return false;
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
+      if (lat < -90 || lat > 90) return false;
+      if (lng < -180 || lng > 180) return false;
+      return true;
+    };
+
+    if (isValid(latNum, lngNum)) {
+      return { lat: latNum, lng: lngNum, swapped: false, valid: true };
+    }
+
+    // Try swapping
+    if (isValid(lngNum, latNum)) {
+      return { lat: lngNum, lng: latNum, swapped: true, valid: true };
+    }
+
+    return { lat: null, lng: null, swapped: false, valid: false };
+  };
+
+  
+
   if (locationLoading) {
     return <div className="flex items-center justify-center h-full"><p>Loading map...</p></div>;
   }
@@ -180,16 +289,17 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   const FocusHandler = ({ focus }: { focus?: Focus }) => {
     const mapInstance = (useMap as any)();
     React.useEffect(() => {
-      if (!focus || !mapInstance) return;
-      const { lat, lng, zoom, id, pincode } = focus;
+    if (!focus || !mapInstance) return;
+    const { lat, lng, zoom, id, pincode } = focus;
+    console.debug('[CorrelationMap] Focus changed:', { lat, lng, id, pincode });
 
       const openPopupForId = (problemId?: string | number) => {
-        if (!problemId) return;
-        const ref = markerRefs.current && markerRefs.current[problemId];
+        if (!problemId) return false;
+        const key = String(problemId);
+        const ref = markerRefs.current && markerRefs.current[key];
         if (ref) {
           try {
             if (typeof ref.openPopup === 'function') ref.openPopup();
-            else if (ref.leafletElement && typeof ref.leafletElement.openPopup === 'function') ref.leafletElement.openPopup();
           } catch (err) {
             // ignore
           }
@@ -201,24 +311,28 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
       const tryFly = (targetLat?: number | null, targetLng?: number | null) => {
         if (targetLat == null || targetLng == null) return;
         try {
-          mapInstance.flyTo([targetLat, targetLng], zoom || 14, { duration: 0.6 });
+          mapInstance.flyTo([targetLat, targetLng], zoom || 16, { duration: 0.6 });
         } catch (e) {
-          mapInstance.setView([targetLat, targetLng], zoom || 14);
+          mapInstance.setView([targetLat, targetLng], zoom || 16);
         }
       };
 
       // If coordinates available, fly and open popup
       if (lat != null && lng != null) {
-        tryFly(lat, lng);
-        // Try to open the popup immediately, otherwise retry a few times in case markers are still rendering
-        if (!openPopupForId(id)) {
-          let attempts = 0;
-          const iv = setInterval(() => {
-            attempts += 1;
-            if (openPopupForId(id) || attempts >= 6) clearInterval(iv);
-          }, 500);
+        const normalized = normalizeCoords(lat, lng);
+        console.debug('[CorrelationMap] Normalized focus coords:', normalized);
+        if (normalized.valid) {
+          tryFly(normalized.lat, normalized.lng);
+          // Try to open the popup immediately, otherwise retry a few times in case markers are still rendering
+          if (!openPopupForId(id)) {
+            let attempts = 0;
+            const iv = setInterval(() => {
+              attempts += 1;
+              if (openPopupForId(id) || attempts >= 6) clearInterval(iv);
+            }, 500);
+          }
+          return;
         }
-        return;
       }
 
       // If no coords but pincode provided, try to geocode via Nominatim
@@ -229,23 +343,24 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
             const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&postalcode=${encodeURIComponent(pincode)}&limit=1`;
             const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
             const json = await res.json();
-            if (Array.isArray(json) && json.length > 0) {
-              const entry = json[0];
-              const gLat = Number(entry.lat);
-              const gLng = Number(entry.lon);
-              if (!isNaN(gLat) && !isNaN(gLng)) {
-                tryFly(gLat, gLng);
-                // try open popup (marker might be present if problems were loaded)
-                if (!openPopupForId(id)) {
-                  let attempts = 0;
-                  const iv = setInterval(() => {
-                    attempts += 1;
-                    if (openPopupForId(id) || attempts >= 6) clearInterval(iv);
-                  }, 500);
+              if (Array.isArray(json) && json.length > 0) {
+                const entry = json[0];
+                const gLat = Number(entry.lat);
+                const gLng = Number(entry.lon);
+                const normalized = normalizeCoords(gLat, gLng);
+                if (normalized.valid) {
+                  tryFly(normalized.lat, normalized.lng);
+                  // try open popup (marker might be present if problems were loaded)
+                  if (!openPopupForId(id)) {
+                    let attempts = 0;
+                    const iv = setInterval(() => {
+                      attempts += 1;
+                      if (openPopupForId(id) || attempts >= 6) clearInterval(iv);
+                    }, 500);
+                  }
+                  return;
                 }
-                return;
               }
-            }
           } catch (err) {
             // ignore geocode errors
             console.error('Pincode geocode failed', err);
@@ -255,12 +370,19 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
       // Fallback: try opening popup if already available
       openPopupForId(id);
+      // record debug info into outer component via custom event on window (fallback if setDebugFocus isn't available)
+      try {
+        (window as any).__correlationMapLastFocus = { raw: { lat, lng, pincode, id }, timestamp: Date.now() };
+      } catch (e) {}
     }, [focus, mapInstance]);
     return null;
   };
 
+
   return (
-    <MapContainer center={mapCenter} zoom={12} style={containerStyle}>
+    <MapErrorBoundary>
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <MapContainer center={mapCenter} zoom={12} style={containerStyle}>
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -312,81 +434,122 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
       )}
 
       {/* Problem markers */}
-      {problemsLoading ? null : (
-        problemMarkers.map((p) => {
-          if (p.latitude == null || p.longitude == null) return null;
-          const position: [number, number] = [Number(p.latitude), Number(p.longitude)];
+      {(() => {
+        if (problemsLoading) return null;
 
-          const counts = voteCountsByProblem[p.id] || { up: 0, down: 0 };
-          // create a small label icon that shows the title and net votes directly on the map
-          const titleRaw = (p.title || '').toString();
-          const titleTrunc = titleRaw.length > 30 ? titleRaw.slice(0, 27) + '...' : titleRaw;
-          const net = (counts.up || 0) - (counts.down || 0);
-          const netLabel = net >= 0 ? `+${net}` : `${net}`;
+        const markersByLocation: Record<string, any[]> = {};
+        (problemMarkers || []).forEach((p) => {
+          const normalized = normalizeCoords(p.latitude, p.longitude);
+          if (!normalized.valid || !normalized.lat || !normalized.lng) return;
+          const key = `${normalized.lat.toFixed(6)},${normalized.lng.toFixed(6)}`;
+          if (!markersByLocation[key]) {
+            markersByLocation[key] = [];
+          }
+          markersByLocation[key].push(p);
+        });
 
-          const problemIcon = new L.DivIcon({
-            className: 'problem-label-icon',
-            html: `<div style="background: rgba(255,255,255,0.95); padding:4px 8px; border-radius:12px; border:1px solid #e5e7eb; font-size:12px; box-shadow:0 1px 2px rgba(0,0,0,0.06); display:flex; gap:8px; align-items:center;">
-                      <span style=\"font-weight:600; color:#111827; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">${titleTrunc}</span>
-                      <span style=\"background:${net>=0? '#ecfdf5' : '#fff1f2'}; color:${net>=0? '#065f46' : '#b91c1c'}; padding:2px 6px; border-radius:999px; font-weight:700; font-size:11px;\">${netLabel}</span>
-                    </div>`,
-            iconSize: [Math.min(220, 12 * titleTrunc.length + 60), 32],
-            iconAnchor: [10, 32],
+        return Object.values(markersByLocation).flatMap(overlapping => {
+          const isCluster = overlapping.length > 1;
+          return overlapping.map((p, index) => {
+            const normalized = normalizeCoords(p.latitude, p.longitude);
+            if (!normalized.valid || !normalized.lat || !normalized.lng) return null;
+
+            let position: [number, number] = [normalized.lat, normalized.lng];
+
+            if (isCluster) {
+              const offset = 0.001; // Drastically increased offset
+              const angle = (index / overlapping.length) * 2 * Math.PI;
+              position = [
+                  position[0] + offset * Math.cos(angle),
+                  position[1] + offset * Math.sin(angle),
+              ];
+            }
+
+            const counts = voteCountsByProblem[p.id] || { up: 0, down: 0 };
+            const titleRaw = `(#${index}) ${p.title || ''}`;
+            const titleTrunc = titleRaw.length > 30 ? titleRaw.slice(0, 27) + '...' : titleRaw;
+            const net = (counts.up || 0) - (counts.down || 0);
+            const netLabel = net >= 0 ? `+${net}` : `${net}`;
+
+            const problemIcon = new L.DivIcon({
+              className: 'problem-label-icon',
+              html: `<div style="background: rgba(255,255,255,0.95); padding:4px 8px; border-radius:12px; border:1px solid #e5e7eb; font-size:12px; box-shadow:0 1px 2px rgba(0,0,0,0.06); display:flex; gap:8px; align-items:center;">
+                        <span style="font-weight:600; color:#111827; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${titleTrunc}</span>
+                        <span style="background:${net>=0? '#ecfdf5' : '#fff1f2'}; color:${net>=0? '#065f46' : '#b91c1c'}; padding:2px 6px; border-radius:999px; font-weight:700; font-size:11px;">${netLabel}</span>
+                      </div>`,
+              iconSize: [Math.min(220, 12 * titleTrunc.length + 60), 32],
+              iconAnchor: [10, 32],
+            });
+
+            return (
+              <Marker
+                key={`problem-${p.id}`}
+                position={position}
+                icon={problemIcon}
+                zIndexOffset={1000}
+                ref={(m) => {
+                      try {
+                        if (m) {
+                          markerRefs.current = markerRefs.current || {};
+                          markerRefs.current[String(p.id)] = (m as any)?.leafletElement ?? (m as any);
+                        } else if (markerRefs.current) {
+                          delete markerRefs.current[String(p.id)];
+                        }
+                      } catch (e) {
+                        // ignore
+                      }
+                    }}
+              >
+                <Popup>
+                  <Card className="border-none shadow-none max-w-xs">
+                    <CardHeader className="p-2">
+                      <CardTitle className="text-base">
+                        <button
+                          className="text-left text-primary hover:underline"
+                          onClick={() => navigate(`/problems/${p.id}`)}
+                        >
+                          {p.title}
+                        </button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-2 text-sm">
+                      <p className="mb-2">{p.description?.slice(0, 200)}</p>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'upvote' })}>
+                          👍 Upvote
+                        </Button>
+                        <div className="text-sm">{counts.up}</div>
+                        <Button size="sm" variant="destructive" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'downvote' })}>
+                          👎 Downvote
+                        </Button>
+                        <div className="text-sm">{counts.down}</div>
+                        <div className="ml-auto text-xs text-muted-foreground">Net: {p.votes_count ?? 0}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Popup>
+              </Marker>
+            );
           });
+        });
+      })()}
+      </MapContainer>
 
-          return (
-            <Marker
-              key={`problem-${p.id}`}
-              position={position}
-              icon={problemIcon}
-              ref={(m) => {
-                // store ref in the markerRefs map for later popup opening
-                try {
-                  if (m) {
-                    // react-leaflet v4 provides the underlying Leaflet element via m as any
-                    markerRefs.current = markerRefs.current || {};
-                    markerRefs.current[p.id] = (m as any)?.leafletElement ?? (m as any);
-                  } else if (markerRefs.current) {
-                    delete markerRefs.current[p.id];
-                  }
-                } catch (e) {
-                  // ignore
-                }
-              }}
-            >
-              <Popup>
-                <Card className="border-none shadow-none max-w-xs">
-                  <CardHeader className="p-2">
-                    <CardTitle className="text-base">
-                      <button
-                        className="text-left text-primary hover:underline"
-                        onClick={() => navigate(`/problems/${p.id}`)}
-                      >
-                        {p.title}
-                      </button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 text-sm">
-                    <p className="mb-2">{p.description?.slice(0, 200)}</p>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'upvote' })}>
-                        👍 Upvote
-                      </Button>
-                      <div className="text-sm">{counts.up}</div>
-                      <Button size="sm" variant="destructive" onClick={() => voteMutation.mutate({ problemId: p.id, voteType: 'downvote' })}>
-                        👎 Downvote
-                      </Button>
-                      <div className="text-sm">{counts.down}</div>
-                      <div className="ml-auto text-xs text-muted-foreground">Net: {p.votes_count ?? 0}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Popup>
-            </Marker>
-          );
-        })
-      )}
-    </MapContainer>
+      {/* Debug overlay: shows last focus and normalized coords for troubleshooting (rendered outside MapContainer) */}
+      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 9999 }}>
+        <div className="bg-white/80 text-xs p-2 rounded shadow max-w-xs">
+          <div className="font-semibold">Map Debug</div>
+          <div id="__map_debug_place_holder" style={{ whiteSpace: 'pre-wrap', maxWidth: 300 }}>
+            {typeof (window as any).__correlationMapLastFocus !== 'undefined' ? (
+              <pre style={{ margin: 0 }}>{JSON.stringify((window as any).__correlationMapLastFocus, null, 2)}</pre>
+            ) : (
+              <div>No focus yet</div>
+            )}
+          </div>
+        </div>
+      </div>
+      </div>
+    </MapErrorBoundary>
   );
 };
 
