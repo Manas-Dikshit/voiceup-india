@@ -78,8 +78,7 @@ const fetchProblems = async () => {
   const { data, error } = await supabase
     .from("problems")
     .select("*")
-    .order("created_at", { ascending: false })
-    .limit(10);
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
 };
@@ -184,6 +183,41 @@ const Dashboard = () => {
     },
   });
 
+  const { data: userVotes = {} } = useQuery({
+    queryKey: ['userVotes', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('votes')
+        .select('votable_id, vote_type')
+        .eq('user_id', profile!.id)
+        .eq('votable_type', 'problem');
+      if (error) throw new Error(error.message);
+      return (data || []).reduce((acc, row) => {
+        acc[row.votable_id as string] = row.vote_type as 'upvote' | 'downvote';
+        return acc;
+      }, {} as Record<string, 'upvote' | 'downvote'>);
+    },
+    enabled: !!profile?.id,
+    staleTime: 1000 * 30,
+  });
+
+  const { data: voteTotals = {} } = useQuery({
+    queryKey: ['problemVoteTotals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('problem_vote_totals')
+        .select('problem_id, net_votes');
+      if (error) throw new Error(error.message);
+      return (data || []).reduce((acc, row) => {
+        if (row.problem_id) {
+          acc[row.problem_id] = Number(row.net_votes ?? 0);
+        }
+        return acc;
+      }, {} as Record<string, number>);
+    },
+    staleTime: 1000 * 15,
+  });
+
   useEffect(() => {
     checkAuth();
 
@@ -196,6 +230,9 @@ const Dashboard = () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
           queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
         }
       )
       .subscribe();
@@ -204,11 +241,15 @@ const Dashboard = () => {
       .channel("votes-feed")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "votes" },
+        { event: "*", schema: "public", table: "votes" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
           queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
         }
       )
       .subscribe();
@@ -217,7 +258,7 @@ const Dashboard = () => {
       supabase.removeChannel(problemsChannel);
       supabase.removeChannel(votesChannel);
     };
-  }, [queryClient]);
+  }, [queryClient, profile?.id]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -307,7 +348,9 @@ const Dashboard = () => {
     queryClient.invalidateQueries({ queryKey: ['problems'] });
     queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
     queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+    queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
     if (profile?.id) {
+      queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
       loadImpactStats(profile.id, impactStats?.badges ?? profile.badges ?? []);
     }
   };
@@ -466,11 +509,17 @@ const Dashboard = () => {
                 </Card>
               ) : (
                 (Array.isArray(problems) ? problems : []).map((raw: any) => {
-                  const problem = normalizeProblem(raw);
+                  const normalized = normalizeProblem(raw);
+                  const problem: Problem = {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
                   return (
                     <ProblemCard
                       key={problem.id}
                       problem={problem}
+                      currentUserId={profile?.id}
                       onShowOnMap={(p: Problem) => {
                         setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                         setActiveTab('insights');
@@ -514,11 +563,17 @@ const Dashboard = () => {
             {position && nearbyProblems.length > 0 && (
               <div className="space-y-4">
                 {nearbyProblems.map((raw: any) => {
-                  const problem = normalizeProblem(raw);
+                  const normalized = normalizeProblem(raw);
+                  const problem: Problem = {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
                   return (
                     <ProblemCard
                       key={problem.id}
                       problem={problem}
+                      currentUserId={profile?.id}
                       onShowOnMap={(p: Problem) => {
                         setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                         setActiveTab('insights');
@@ -533,13 +588,21 @@ const Dashboard = () => {
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
               {(Array.isArray(problems) ? problems : [])
-                .map(normalizeProblem)
+                .map((raw: any) => {
+                  const normalized = normalizeProblem(raw);
+                  return {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
+                })
                 .sort((a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
                 .slice(0, 5)
                 .map((problem) => (
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
+                    currentUserId={profile?.id}
                     onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');

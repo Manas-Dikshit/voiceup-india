@@ -24,5 +24,6 @@ export interface Problem {
   pincode?: string | null;
   location?: any; // geo field from RPC
   comments_count?: number; // Optional comments count
+  user_vote?: 'upvote' | 'downvote' | null;
   [key: string]: any;
 }

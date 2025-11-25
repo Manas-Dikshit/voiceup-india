@@ -381,6 +381,17 @@ export type Database = {
         }
         Relationships: []
       }
+      problem_vote_totals: {
+        Row: {
+          downvotes: number | null
+          last_activity_at: string | null
+          net_votes: number | null
+          problem_id: string | null
+          total_votes: number | null
+          upvotes: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_problem_correlations: {
@@ -443,6 +454,13 @@ export type Database = {
           user_id: string | null
           votes_count: number | null
         }[]
+      }
+      vote_problem: {
+        Args: {
+          p_problem_id: string
+          p_vote_type: Database["public"]["Enums"]["vote_type"]
+        }
+        Returns: number
       }
     }
     Enums: {

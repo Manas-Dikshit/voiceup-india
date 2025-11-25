@@ -17,6 +17,7 @@ L.Icon.Default.mergeOptions({
 const containerStyle = {
   width: '100%',
   height: '100%',
+  minHeight: '320px',
 };
 
 const defaultCenter: [number, number] = [20.5937, 78.9629];
@@ -91,12 +92,13 @@ const MinistryMap: React.FC<MinistryMapProps> = ({ filters, onDataLoad }) => {
   }
 
   return (
-    <MapContainer center={defaultCenter} zoom={5} style={containerStyle}>
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      />
-      {correlations.map((c) => {
+    <div className="h-full w-full rounded-2xl border border-border bg-card shadow-sm">
+      <MapContainer center={defaultCenter} zoom={5} style={containerStyle} className="h-full w-full rounded-2xl">
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        {correlations.map((c) => {
         // Note: The RPC function get_filtered_correlations doesn't return center_point_wkt
         // because it's not needed for a national-level view. We use region_id which is the grid cell.
         const position = parseWktPoint(c.region_id);
@@ -107,7 +109,7 @@ const MinistryMap: React.FC<MinistryMapProps> = ({ filters, onDataLoad }) => {
 
         const customIcon = new L.DivIcon({
           className: 'custom-div-icon',
-          html: `<div style='background: ${iconColor}; width: ${iconSize}px; height: ${iconSize}px; border-radius: 50%; opacity: 0.7;'></div>`,
+          html: `<div style="background:${iconColor};width:${iconSize}px;height:${iconSize}px;border-radius:50%;opacity:0.75;border:2px solid rgba(255,255,255,0.8);"></div>`,
           iconSize: [iconSize, iconSize],
           iconAnchor: [iconSize / 2, iconSize / 2]
         });
@@ -115,19 +117,22 @@ const MinistryMap: React.FC<MinistryMapProps> = ({ filters, onDataLoad }) => {
         return (
           <Marker key={c.region_id + c.category_a + c.category_b} position={position} icon={customIcon}>
             <Popup>
-              <Card className="border-none shadow-none">
-                <CardHeader className="p-2"><CardTitle className="text-base">Correlation Details</CardTitle></CardHeader>
-                <CardContent className="p-2 text-sm">
-                  <p><strong>City:</strong> {c.city || 'N/A'}</p>
-                  <p><strong>Categories:</strong> {c.category_a} &harr; {c.category_b}</p>
-                  <p><strong>Score:</strong> {c.correlation_score.toFixed(2)}</p>
+              <Card className="border border-border bg-white p-2 text-sm text-foreground shadow-lg">
+                <CardHeader className="p-0 pb-1">
+                  <CardTitle className="text-base font-semibold">Correlation Insight</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 space-y-1">
+                  <p><span className="font-medium">City:</span> {c.city || 'N/A'}</p>
+                  <p><span className="font-medium">Categories:</span> {c.category_a} ↔ {c.category_b}</p>
+                  <p><span className="font-medium">Score:</span> {c.correlation_score.toFixed(2)}</p>
                 </CardContent>
               </Card>
             </Popup>
           </Marker>
         );
       })}
-    </MapContainer>
+      </MapContainer>
+    </div>
   );
 };
 
