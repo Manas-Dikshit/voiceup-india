@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -653,8 +654,13 @@ const Dashboard = () => {
           </div>
         </DrawerContent>
       </Drawer>
+      {/* Civic Knowledge Graph Explorer for users */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Civic Knowledge Graph</h2>
+        <CivicGraphExplorer />
+      </div>
     </div>
   );
-};
+}
 
 export default Dashboard;
