@@ -102,7 +102,7 @@ const Index = () => {
         <div className="hidden sm:block">
           <Button
             variant="ghost"
-            className="text-sm font-medium hover:bg-sky-500/20 te-sky-200"
+            className="px-8 rounded-full text-sm font-medium border-2 border-sky-600 px-6 bg-sky-200 text-sky-900 hover:bg-sky-100 hover:border-sky-600 hover:text-sky-700 transition-colors duration-200"
             onClick={() => navigate("/auth")}
           >
             Get Started
