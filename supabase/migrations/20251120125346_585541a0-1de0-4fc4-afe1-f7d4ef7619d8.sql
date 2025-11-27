@@ -232,10 +232,10 @@ CREATE TRIGGER update_solutions_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
 -- Create indexes for better performance
-CREATE INDEX idx_problems_user_id ON public.problems(user_id);
-CREATE INDEX idx_problems_status ON public.problems(status);
-CREATE INDEX idx_problems_category ON public.problems(category);
-CREATE INDEX idx_problems_location ON public.problems(latitude, longitude);
-CREATE INDEX idx_solutions_problem_id ON public.solutions(problem_id);
-CREATE INDEX idx_votes_votable ON public.votes(votable_type, votable_id);
-CREATE INDEX idx_comments_commentable ON public.comments(commentable_type, commentable_id);
+CREATE INDEX IF NOT EXISTS idx_problems_user_id ON public.problems(user_id);
+CREATE INDEX IF NOT EXISTS idx_problems_status ON public.problems(status);
+CREATE INDEX IF NOT EXISTS idx_problems_category ON public.problems(category);
+CREATE INDEX IF NOT EXISTS idx_problems_location ON public.problems(latitude, longitude);
+CREATE INDEX IF NOT EXISTS idx_solutions_problem_id ON public.solutions(problem_id);
+CREATE INDEX IF NOT EXISTS idx_votes_votable ON public.votes(votable_type, votable_id);
+CREATE INDEX IF NOT EXISTS idx_comments_commentable ON public.comments(commentable_type, commentable_id);

@@ -15,7 +15,15 @@ import {
   ArrowRight,
   CheckCircle,
 } from "lucide-react";
+
 import { motion } from "framer-motion";
+
+// === NEW EARTH-GLOW BACKGROUND ===
+const earthGlow: React.CSSProperties = {
+  background: `radial-gradient(circle at 50% 120%, rgba(98, 0, 234, 0.55), rgba(20, 0, 40, 0.95) 70%)`,
+  position: "relative",
+  overflow: "hidden",
+};
 
 const earthShape = (
   <div

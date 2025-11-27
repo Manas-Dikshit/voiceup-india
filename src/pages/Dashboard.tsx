@@ -16,39 +16,75 @@ import Chatbot, { Message } from "@/components/Chatbot";
 import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
+import { Problem } from "@/lib/types";
 
 interface Profile {
   id: string;
   full_name: string;
+  // These come from a view/function; keep them optional to match Supabase row
+  points?: number;
+  badges?: string[];
+  [key: string]: any;
+}
+
+interface ContributionMetrics {
+  reportsCount: number;
+  commentsCount: number;
+  votesCount: number;
+}
+
+interface ImpactStats extends ContributionMetrics {
   points: number;
   badges: string[];
 }
 
-interface Problem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  votes_count: number;
-  status: string;
-  created_at: string;
-  latitude: number;
-  longitude: number;
-  pincode?: string;
-}
+const BADGE_RULES = [
+  {
+    id: "first-action",
+    label: "First Contribution",
+    predicate: (stats: ImpactStats) =>
+      stats.reportsCount + stats.commentsCount + stats.votesCount >= 1,
+  },
+  {
+    id: "reporter",
+    label: "Active Reporter",
+    predicate: (stats: ImpactStats) => stats.reportsCount >= 3,
+  },
+  {
+    id: "voter",
+    label: "Community Voter",
+    predicate: (stats: ImpactStats) => stats.votesCount >= 10,
+  },
+  {
+    id: "conversation",
+    label: "Conversation Starter",
+    predicate: (stats: ImpactStats) => stats.commentsCount >= 5,
+  },
+  {
+    id: "change-maker",
+    label: "Change Maker",
+    predicate: (stats: ImpactStats) => stats.points >= 50,
+  },
+];
+
+const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []) => {
+  const earned = BADGE_RULES
+    .filter((rule) => rule.predicate(stats))
+    .map((rule) => rule.label);
+  return Array.from(new Set([...(existingBadges ?? []), ...earned]));
+};
 
 const fetchProblems = async () => {
   const { data, error } = await supabase
     .from("problems")
     .select("*")
-    .order("created_at", { ascending: false })
-    .limit(10);
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
 };
 
 const fetchNearbyProblems = async (latitude: number, longitude: number) => {
-  const { data, error } = await supabase.rpc('nearby_problems', {
+  const { data, error } = await (supabase as any).rpc('nearby_problems', {
     lat: latitude,
     lng: longitude
   });
@@ -80,28 +116,106 @@ const fetchNearbyProblems = async (latitude: number, longitude: number) => {
   });
 };
 
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('all');
-  const [mapFocus, setMapFocus] = useState<{ lat?: number | null; lng?: number | null; id?: string | number; pincode?: string } | null>(null);
-  const { position: location, error: locationError } = useUserLocation();
-  const queryClient = useQueryClient();
+  const { position, error: locationError, loading: locationLoading } = useUserLocation();
+  const [activeTab, setActiveTab] = useState("all");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
+  const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
+  const [impactStats, setImpactStats] = useState<ImpactStats | null>(null);
 
-  const { data: problems = [], isLoading: problemsLoading } = useQuery<Problem[]>({
-    queryKey: ['problems'],
-    queryFn: fetchProblems
+  const queryClient = useQueryClient();
+
+  const normalizeProblem = (raw: any): Problem => {
+    let latitude: number | null = raw?.latitude ?? null;
+    let longitude: number | null = raw?.longitude ?? null;
+    const locationField = raw?.location;
+    if ((latitude === null || longitude === null) && locationField) {
+      if (typeof locationField === "string" && locationField.startsWith("POINT")) {
+        const inside = locationField.replace(/POINT\(|\)/g, "").trim();
+        const [lngStr, latStr] = inside.split(" ").filter(Boolean);
+        longitude = Number(lngStr);
+        latitude = Number(latStr);
+      } else if (typeof locationField === "object" && Array.isArray(locationField.coordinates)) {
+        longitude = Number(locationField.coordinates[0]);
+        latitude = Number(locationField.coordinates[1]);
+      }
+    }
+
+    return {
+      id: raw?.id ?? `problem-${Date.now()}-${Math.random()}`,
+      title: raw?.title ?? "Untitled problem",
+      description: raw?.description ?? "",
+      category: raw?.category ?? "other",
+      votes_count: Number(raw?.votes_count ?? 0),
+      comments_count: Number(raw?.comments_count ?? 0),
+      status: raw?.status ?? "reported",
+      created_at: raw?.created_at ?? new Date().toISOString(),
+      latitude: Number.isFinite(latitude) ? Number(latitude) : null,
+      longitude: Number.isFinite(longitude) ? Number(longitude) : null,
+      pincode: raw?.pincode ?? undefined,
+    };
+  };
+
+  const { data: problems, isLoading: problemsLoading } = useQuery({
+    queryKey: ["problems"],
+    queryFn: fetchProblems,
   });
 
-  const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery<Problem[]>({
-    queryKey: ['nearbyProblems', location?.latitude, location?.longitude],
-    queryFn: () => fetchNearbyProblems(location!.latitude, location!.longitude),
-    enabled: !!location,
+  const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery({
+    queryKey: ['nearbyProblems', position?.latitude, position?.longitude],
+    queryFn: () => fetchNearbyProblems(position!.latitude, position!.longitude),
+    enabled: !!position,
+  });
+
+  const { data: totalProblemsCount = 0 } = useQuery({
+    queryKey: ['problemCount'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('problems')
+        .select('id', { count: 'exact', head: true });
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+  });
+
+  const { data: userVotes = {} } = useQuery({
+    queryKey: ['userVotes', profile?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('votes')
+        .select('votable_id, vote_type')
+        .eq('user_id', profile!.id)
+        .eq('votable_type', 'problem');
+      if (error) throw new Error(error.message);
+      return (data || []).reduce((acc, row) => {
+        acc[row.votable_id as string] = row.vote_type as 'upvote' | 'downvote';
+        return acc;
+      }, {} as Record<string, 'upvote' | 'downvote'>);
+    },
+    enabled: !!profile?.id,
+    staleTime: 1000 * 30,
+  });
+
+  const { data: voteTotals = {} } = useQuery({
+    queryKey: ['problemVoteTotals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('problem_vote_totals')
+        .select('problem_id, net_votes');
+      if (error) throw new Error(error.message);
+      return (data || []).reduce((acc, row) => {
+        if (row.problem_id) {
+          acc[row.problem_id] = Number(row.net_votes ?? 0);
+        }
+        return acc;
+      }, {} as Record<string, number>);
+    },
+    staleTime: 1000 * 15,
   });
 
   useEffect(() => {
@@ -115,6 +229,10 @@ const Dashboard = () => {
         () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
         }
       )
       .subscribe();
@@ -123,10 +241,15 @@ const Dashboard = () => {
       .channel("votes-feed")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "votes" },
+        { event: "*", schema: "public", table: "votes" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["problems"] });
           queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
         }
       )
       .subscribe();
@@ -135,7 +258,7 @@ const Dashboard = () => {
       supabase.removeChannel(problemsChannel);
       supabase.removeChannel(votesChannel);
     };
-  }, [queryClient]);
+  }, [queryClient, profile?.id]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -145,7 +268,10 @@ const Dashboard = () => {
       return;
     }
 
-    await loadProfile(session.user.id);
+    const loadedProfile = await loadProfile(session.user.id);
+    if (loadedProfile) {
+      await loadImpactStats(loadedProfile.id, loadedProfile.badges ?? []);
+    }
     setLoading(false);
   };
 
@@ -158,10 +284,54 @@ const Dashboard = () => {
 
     if (error) {
       console.error("Error loading profile:", error);
-      return;
+      return null;
     }
 
-    setProfile(data);
+    const profileData = data as Partial<Profile> & Record<string, any>;
+    const normalizedProfile: Profile = {
+      id: (profileData.id ?? profileData.user_id ?? "") as string,
+      full_name: (profileData.full_name ?? profileData.username ?? "Citizen") as string,
+      points: profileData.points ?? 0,
+      badges: Array.isArray(profileData.badges) ? profileData.badges : [],
+      ...profileData,
+    };
+    setProfile(normalizedProfile);
+    return normalizedProfile;
+  };
+
+  const loadImpactStats = async (userId: string, existingBadges: string[] = []) => {
+    try {
+      const [reported, commented, voted] = await Promise.all([
+        supabase.from('problems').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('comments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('votes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      ]);
+
+      if (reported.error) throw reported.error;
+      if (commented.error) throw commented.error;
+      if (voted.error) throw voted.error;
+
+      const reportsCount = reported.count ?? 0;
+      const commentsCount = commented.count ?? 0;
+      const votesCount = voted.count ?? 0;
+
+      const points = reportsCount * 5 + commentsCount * 2 + votesCount;
+      const badges = deriveBadges(
+        { reportsCount, commentsCount, votesCount, points, badges: [] },
+        existingBadges
+      );
+
+      setImpactStats({ reportsCount, commentsCount, votesCount, points, badges });
+    } catch (error) {
+      console.error('Error loading citizen impact stats:', error);
+      setImpactStats((prev) => prev ?? {
+        reportsCount: 0,
+        commentsCount: 0,
+        votesCount: 0,
+        points: profile?.points ?? 0,
+        badges: existingBadges,
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -177,6 +347,12 @@ const Dashboard = () => {
     setShowReportForm(false);
     queryClient.invalidateQueries({ queryKey: ['problems'] });
     queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
+    queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+    queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
+    if (profile?.id) {
+      queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+      loadImpactStats(profile.id, impactStats?.badges ?? profile.badges ?? []);
+    }
   };
 
   const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
@@ -199,7 +375,7 @@ const Dashboard = () => {
         text: "Failed to get a response from the AI assistant.",
         sender: "bot",
       };
-      setChatHistory(prev => [...prev, errorMessage]);
+      setChatHistory((prev: Message[]) => [...prev, errorMessage]);
       throw new Error("Failed to get a response from the AI assistant.");
     }
     
@@ -209,7 +385,7 @@ const Dashboard = () => {
       sender: "bot",
     };
 
-    setChatHistory(prev => [...prev, botMessage]);
+    setChatHistory((prev: Message[]) => [...prev, botMessage]);
     return botMessage.text;
   };
 
@@ -224,6 +400,13 @@ const Dashboard = () => {
     );
   }
 
+  const pointsDisplay = impactStats?.points ?? profile?.points ?? 0;
+  const badgesDisplay = (impactStats?.badges?.length ? impactStats.badges : profile?.badges) ?? [];
+  const activeProblemsCount = position
+    ? (nearbyProblemsLoading && !locationError ? null : nearbyProblems.length)
+    : totalProblemsCount ?? (Array.isArray(problems) ? problems.length : 0);
+  const activeProblemsLabel = position ? "In your area" : "Across VoiceUp";
+
   return (
     <div className="min-h-screen bg-background">
       <Header
@@ -233,7 +416,7 @@ const Dashboard = () => {
               <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Award className="h-3 w-3" />
-                <span>{profile?.points} points</span>
+                <span>{pointsDisplay} points</span>
               </div>
             </div>
             <NotificationBell />
@@ -248,7 +431,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-primary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
@@ -256,12 +439,12 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.points} Points</div>
-              <p className="text-xs text-muted-foreground mt-1">Keep contributing to earn more!</p>
+              <div className="text-2xl font-bold">{pointsDisplay}</div>
+              <p className="text-xs text-muted-foreground mt-1">Points earned by voting, reporting, and commenting.</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-secondary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Award className="h-4 w-4 text-secondary" />
@@ -269,12 +452,19 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profile?.badges?.length || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Unlock more achievements</p>
+              <div className="text-2xl font-bold">{badgesDisplay.length}</div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {badgesDisplay.map((badge: string, i: number) => (
+                  <span key={i} className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border">{badge}</span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Unlock more achievements by contributing.
+              </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-info/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-info" />
@@ -282,26 +472,26 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{problems.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">In your area</p>
+              <div className="text-2xl font-bold">{activeProblemsCount ?? '—'}</div>
+              <p className="text-xs text-muted-foreground mt-1">{activeProblemsLabel}</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Report Problem Button */}
         <div className="mb-6">
-          <Button 
-            size="lg" 
-            className="w-full md:w-auto bg-secondary hover:bg-secondary/90"
+          <Button
+            size="lg"
+            className="w-full md:w-auto"
             onClick={() => setShowReportForm(true)}
+            variant="glass-primary"
           >
             <Plus className="h-5 w-5 mr-2" />
             Report a Problem
           </Button>
         </div>
-
         {/* Problems List */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
           <TabsList>
             <TabsTrigger value="all">All Problems</TabsTrigger>
             <TabsTrigger value="nearby">Nearby</TabsTrigger>
@@ -311,23 +501,32 @@ const Dashboard = () => {
 
           <TabsContent value="all" className="mt-6">
             <div className="space-y-4">
-              {problems.length === 0 ? (
+              {(Array.isArray(problems) ? problems : []).length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
                     No problems reported yet. Be the first to report one!
                   </CardContent>
                 </Card>
               ) : (
-                problems.map((problem) => (
-                  <ProblemCard
-                    key={problem.id}
-                    problem={problem}
-                    onShowOnMap={(p) => {
-                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
-                      setActiveTab('insights');
-                    }}
-                  />
-                ))
+                (Array.isArray(problems) ? problems : []).map((raw: any) => {
+                  const normalized = normalizeProblem(raw);
+                  const problem: Problem = {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
+                  return (
+                    <ProblemCard
+                      key={problem.id}
+                      problem={problem}
+                      currentUserId={profile?.id}
+                      onShowOnMap={(p: Problem) => {
+                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setActiveTab('insights');
+                      }}
+                    />
+                  );
+                })
               )}
             </div>
           </TabsContent>
@@ -340,14 +539,14 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             )}
-            {!location && !locationError && (
+            {!position && !locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Getting your location...
                 </CardContent>
               </Card>
             )}
-            {location && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
+            {position && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   No problems found nearby.
@@ -361,32 +560,50 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             )}
-            {location && nearbyProblems.length > 0 && (
+            {position && nearbyProblems.length > 0 && (
               <div className="space-y-4">
-                {nearbyProblems.map((problem) => (
-                  <ProblemCard
-                    key={problem.id}
-                    problem={problem}
-                    onShowOnMap={(p) => {
-                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
-                      setActiveTab('insights');
-                    }}
-                  />
-                ))}
+                {nearbyProblems.map((raw: any) => {
+                  const normalized = normalizeProblem(raw);
+                  const problem: Problem = {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
+                  return (
+                    <ProblemCard
+                      key={problem.id}
+                      problem={problem}
+                      currentUserId={profile?.id}
+                      onShowOnMap={(p: Problem) => {
+                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setActiveTab('insights');
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
-              {problems
-                .sort((a, b) => b.votes_count - a.votes_count)
+              {(Array.isArray(problems) ? problems : [])
+                .map((raw: any) => {
+                  const normalized = normalizeProblem(raw);
+                  return {
+                    ...normalized,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+                    user_vote: userVotes?.[normalized.id] ?? null,
+                  };
+                })
+                .sort((a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
                 .slice(0, 5)
                 .map((problem) => (
                   <ProblemCard
                     key={problem.id}
                     problem={problem}
-                    onShowOnMap={(p) => {
+                    currentUserId={profile?.id}
+                    onShowOnMap={(p: Problem) => {
                       setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
                     }}

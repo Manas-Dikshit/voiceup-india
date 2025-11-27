@@ -1,73 +1,84 @@
-# Welcome to your Lovable project
 
-## Project info
 
-**URL**: https://lovable.dev/projects/4b8d4ff7-eb86-456f-b1c4-8251fa1fd0c2
+# VoiceUp India
 
-## How can I edit this code?
+VoiceUp India is a citizen engagement platform for reporting, tracking, and analyzing public issues. It features geospatial problem mapping, real-time dashboards, a comment system, and an AI-powered chatbot for civic queries.
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- Report problems with location, category, description, and attachments
+- View and upvote/downvote problems in your area
+- Comment on problems and discuss solutions
+- Geospatial map with problem correlation engine
+- Ministry dashboard for analytics and insights
+- AI chatbot for public data and civic help
+- Real-time notifications and updates
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4b8d4ff7-eb86-456f-b1c4-8251fa1fd0c2) and start prompting.
+## Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend:** Vite, React, TypeScript, shadcn-ui, Tailwind CSS
+- **Backend:** Supabase (PostgreSQL, PostGIS, RLS, Functions)
+- **Mapping:** React-Leaflet, PostGIS
+- **State:** TanStack React Query
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Node.js & npm ([install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- Supabase project (see `supabase/config.toml` for project ID)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Local Development
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. Clone the repository
+git clone https://github.com/Manas-Dikshit/voiceup-india
+cd voiceup-india
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 3. Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Supabase Setup
+- Ensure your Supabase project is linked in `supabase/config.toml`
+- Run all migrations in `supabase/migrations/` (or use the consolidated `MANUAL_MIGRATION.sql`)
+- Configure storage buckets for attachments
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Supabase Sync Workflow
+Keep local SQL, RPCs, and generated types in lockstep with the hosted Supabase project:
 
-**Use GitHub Codespaces**
+1. **Authenticate & link**
+	```sh
+	supabase login
+	supabase link --project-ref wfpxknccdypiwpsoyisx
+	```
+2. **Pull the remote schema** to refresh the `supabase/` directory (creates a migration if remote differs):
+	```sh
+	supabase db pull
+	```
+	Inspect the diff that Supabase emits; commit any newly created migration files.
+3. **Apply pending local migrations to the remote project** once the diff looks correct:
+	```sh
+	supabase db push
+	```
+4. **Regenerate TypeScript types** so hooks/components reference the latest schema:
+	```sh
+	supabase gen types typescript --encoded-config supabase/config.toml > src/integrations/supabase/types.ts
+	```
+5. **Validate locally** by running `npm run build` before deploying.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+> If the remote schema was changed outside of migrations, run steps 1–2, resolve conflicts in `supabase/migrations/`, and only then push. This prevents accidental overwrites.
 
-## What technologies are used for this project?
+### Environment Variables
+Create a `.env` file for any secrets (API keys, bucket names, etc). See `.env.example` if present.
 
-This project is built with:
+## Editing & Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Edit code in your IDE and push changes to GitHub
+- Deploy via your preferred static hosting (e.g., Vercel, Netlify)
 
-## How can I deploy this project?
+## License
 
-Simply open [Lovable](https://lovable.dev/projects/4b8d4ff7-eb86-456f-b1c4-8251fa1fd0c2) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT

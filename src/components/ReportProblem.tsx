@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Upload, X } from "lucide-react";
+import { MapPin, Upload, X, Loader2, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ReportProblemProps {
   onClose: () => void;
@@ -50,6 +51,8 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [areaName, setAreaName] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getLocation = () => {
     setLocationLoading(true);
@@ -63,16 +66,16 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
           }));
           setLocationLoading(false);
           toast({
-            title: "Location detected",
-            description: "Your current location has been added to the report.",
+            title: "Location detected ✅",
+            description: "Your current location has been added.",
           });
         },
-        (error) => {
-          console.error("Error getting location:", error);
+        () => {
           setLocationLoading(false);
           toast({
             title: "Location unavailable",
-            description: "Could not get your location. Please ensure you've granted location permissions and are on a secure (https) connection. You can also enter coordinates manually.",
+            description:
+              "Could not get your location. Please ensure location permissions are granted or enter coordinates manually.",
             variant: "destructive",
             duration: 7000,
           });
@@ -81,8 +84,8 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
     } else {
       setLocationLoading(false);
       toast({
-        title: "Location unavailable",
-        description: "Geolocation is not supported by your browser. Please enter coordinates manually.",
+        title: "Location not supported",
+        description: "Your browser doesn't support location access.",
         variant: "destructive",
         duration: 7000,
       });
@@ -92,82 +95,56 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      if (!formData.latitude || !formData.longitude) {
-        throw new Error("Location is required. Please use the location detector or enter coordinates manually.");
-      }
+      if (!formData.latitude || !formData.longitude)
+        throw new Error("Location is required.");
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("You must be logged in to report a problem");
-      }
+      if (!session) throw new Error("Please log in to report a problem.");
 
-      // =================================================================
-      // NEW: Verify that a profile exists for the user before inserting
-      // =================================================================
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session.user.id)
-        .single();
+      // Check profile
+      const { data: profile } = await supabase.from("profiles").select("id").eq("id", session.user.id).single();
+      if (!profile) throw new Error("User profile missing. Try logging out and back in.");
 
-      if (profileError || !profile) {
-        console.error('Profile check failed:', profileError);
-        throw new Error("Your user profile is missing or inaccessible, which is required to post a problem. Please try logging out and back in. If the problem persists, contact support.");
-      }
-      // =================================================================
+      if (!attachment) throw new Error("Please attach a file (photo, video, or document).");
 
-      if (!attachment) {
-        throw new Error("Please attach at least one file. Attachments are required.");
-      }
-
-      // Upload attachment to Supabase Storage
+      // Upload
       const filePath = `${session.user.id}/${Date.now()}_${attachment.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(filePath, attachment as File);
+        .upload(filePath, attachment, {
+          onUploadProgress: (progress) => {
+            if (progress.total)
+              setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
+          },
+        });
 
-      if (uploadError) {
-        // Provide clearer guidance when the bucket doesn't exist or permission denied
-        const lower = String(uploadError.message || "").toLowerCase();
-        if (lower.includes("not found") || lower.includes("does not exist") || lower.includes("bucket")) {
-          throw new Error(`Storage bucket '${BUCKET_NAME}' not found. Create it in your Supabase project dashboard or set VITE_PROBLEM_BUCKET to an existing bucket name.`);
-        }
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(filePath);
-
+      const { data: publicUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
       const mediaUrl = publicUrlData.publicUrl;
 
-      // Append pincode/area info to description (DB doesn't currently have dedicated columns for them)
       const fullDescription = `${formData.description}${areaName ? `\nArea: ${areaName}` : ""}`;
 
-      const problemData = { 
-        user_id: session.user.id,
-        title: formData.title,
-        description: fullDescription,
-        category: formData.category,
-        pincode: formData.pincode,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-        media_url: mediaUrl,
-      };
-
-      console.log('Submitting problem with payload:', problemData);
-
-      const { error } = await supabase.from("problems").insert([problemData]);
+      const { error } = await supabase.from("problems").insert([
+        {
+          user_id: session.user.id,
+          title: formData.title,
+          description: fullDescription,
+          category: formData.category,
+          pincode: formData.pincode,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          media_url: mediaUrl,
+        },
+      ]);
 
       if (error) throw error;
 
       toast({
-        title: "Problem reported!",
-        description: "Your report has been submitted successfully. You earned 10 points!",
+        title: "Problem reported 🎉",
+        description: "Your report has been submitted successfully.",
       });
-
       onSuccess();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -178,31 +155,36 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-gradient-to-b from-background/80 to-background/40 backdrop-blur-xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Report a Problem</DialogTitle>
+          <DialogTitle className="text-2xl font-semibold text-foreground">
+            Report a Problem
+          </DialogTitle>
           <DialogDescription>
             Help improve your community by reporting issues that need attention.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Problem Title *</Label>
             <Input
               id="title"
-              placeholder="Brief description of the problem"
+              placeholder="E.g. Broken streetlight on main road"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
             />
           </div>
 
+          {/* Category */}
           <div className="space-y-2">
             <Label htmlFor="category">Category *</Label>
             <Select
@@ -211,7 +193,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               required
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
+                <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((cat) => (
@@ -223,11 +205,12 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             </Select>
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              placeholder="Provide detailed information about the problem..."
+              placeholder="Describe the problem clearly..."
               rows={4}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -235,11 +218,11 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             />
           </div>
 
+          {/* Coordinates */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="latitude">Latitude</Label>
+              <Label>Latitude</Label>
               <Input
-                id="latitude"
                 type="number"
                 step="0.000001"
                 value={formData.latitude}
@@ -248,9 +231,8 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="longitude">Longitude</Label>
+              <Label>Longitude</Label>
               <Input
-                id="longitude"
                 type="number"
                 step="0.000001"
                 value={formData.longitude}
@@ -260,21 +242,25 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             </div>
           </div>
 
+          {/* Detect Location */}
           <Button
             type="button"
-            variant="outline"
-            className="w-full"
+            className="w-full rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
             onClick={getLocation}
             disabled={locationLoading}
           >
-            <MapPin className="h-4 w-4 mr-2" />
-            {locationLoading ? "Detecting location..." : "Use Current Location"}
+            {locationLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <MapPin className="h-4 w-4 mr-2" />
+            )}
+            {locationLoading ? "Detecting..." : "Use Current Location"}
           </Button>
 
+          {/* Pincode */}
           <div className="space-y-2">
-            <Label htmlFor="pincode">Pincode (Postal Code)</Label>
+            <Label>Pincode</Label>
             <Input
-              id="pincode"
               placeholder="Enter 6-digit pincode"
               maxLength={6}
               value={formData.pincode}
@@ -285,62 +271,100 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               }}
               onBlur={async () => {
                 const pin = formData.pincode;
-                if (pin && pin.length === 6) {
+                if (pin.length === 6) {
                   try {
                     const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
                     const json = await res.json();
-                    if (Array.isArray(json) && json[0].Status === "Success") {
-                      const postOffices = json[0].PostOffice;
-                      if (postOffices && postOffices.length > 0) {
-                        setAreaName(postOffices[0].Name + ", " + postOffices[0].District);
-                      } else {
-                        setAreaName("Unknown area");
-                      }
-                    } else {
-                      setAreaName("Unknown area");
+                    if (json[0]?.Status === "Success") {
+                      const office = json[0].PostOffice?.[0];
+                      setAreaName(office ? `${office.Name}, ${office.District}` : "Unknown area");
                     }
-                  } catch (err) {
-                    console.error("Pincode lookup failed", err);
+                  } catch {
                     setAreaName("Lookup failed");
                   }
                 }
               }}
             />
             {areaName && (
-              <div className="text-sm text-muted-foreground">Area: {areaName}</div>
+              <p className="text-sm text-muted-foreground">Area: {areaName}</p>
             )}
           </div>
 
+          {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="attachment">Attachment *</Label>
-            <div className="flex items-center gap-3">
+            <Label>Attachment *</Label>
+            <div
+              className="relative flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:bg-white/5 hover:border-white/30 transition backdrop-blur-sm bg-white/2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-6 w-6 mb-2 text-primary/70" />
+              <p className="text-sm text-muted-foreground">
+                {attachment ? "✓ File Selected" : "Click to upload or drag & drop"}
+              </p>
               <input
+                ref={fileInputRef}
                 id="attachment"
                 type="file"
-                onChange={(e) => {
-                  const file = e.target.files && e.target.files[0];
-                  setAttachment(file || null);
-                }}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={(e) => setAttachment(e.target.files?.[0] || null)}
                 required
               />
-              {attachment && (
-                <div className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  <span className="text-sm">{attachment.name}</span>
-                  <button type="button" onClick={() => setAttachment(null)} title="Remove">
+            </div>
+
+            {attachment && (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex items-center justify-between bg-muted/30 rounded-lg p-2 border"
+                >
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-primary" />
+                    <span className="text-sm truncate max-w-[200px]">{attachment.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttachment(null)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
                     <X className="h-4 w-4" />
                   </button>
-                </div>
-              )}
-            </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full bg-muted/20 rounded-full h-2 overflow-hidden">
+                <motion.div
+                  className="bg-primary h-2"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${uploadProgress}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            )}
+
+            {uploadProgress === 100 && (
+              <div className="flex items-center text-green-600 text-sm">
+                <CheckCircle className="h-4 w-4 mr-1" /> Upload complete
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          {/* Footer */}
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Report"}
+            <Button type="submit" disabled={loading} className="rounded-lg bg-gradient-to-r from-primary to-primary/80 border border-primary/50 hover:shadow-lg transition-all">
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                </>
+              ) : (
+                "Submit Report"
+              )}
             </Button>
           </DialogFooter>
         </form>
