@@ -1,5 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import RatingDialog from '@/components/review/RatingDialog';
+import useSubmitRating from '@/hooks/useSubmitRating';
 import { supabase } from "@/integrations/supabase/client";
 import { CommentThread } from "@/components/comments/CommentThread";
 import Header from "@/components/Header";
@@ -27,6 +31,20 @@ const ProblemDetail = () => {
     queryFn: () => fetchProblem(id!),
     enabled: !!id,
   });
+
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const submitRating = useSubmitRating();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && problem && user) {
+      // Only prompt the original reporter to submit a rating
+      const isReporter = String((problem as any).user_id) === String(user.id);
+      if (isReporter && String(problem.status) === 'Resolved' && (((problem as any).rating === null) || ((problem as any).rating === undefined))) {
+        setRatingOpen(true);
+      }
+    }
+  }, [isLoading, problem]);
 
   if (isLoading) {
     return (
@@ -73,8 +91,37 @@ const ProblemDetail = () => {
               <img src={problem.media_url} alt="Problem attachment" className="rounded-lg max-w-full h-auto" />
             </div>
           )}
+
+          {/* Rating display for already-reviewed problems */}
+          {((problem as any).rating != null) && (
+            <div className="mt-4 flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg key={i} className={`h-5 w-5 ${i < ((problem as any).rating ?? 0) ? 'text-amber-400' : 'text-muted-foreground'}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.402 8.172L12 18.896l-7.336 3.87 1.402-8.172L.132 9.21l8.2-1.192z" />
+                  </svg>
+                ))}
+              </div>
+              <div className="text-sm text-muted-foreground">{(problem as any).feedback ?? 'No feedback provided.'}</div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <RatingDialog
+        open={ratingOpen}
+        onOpenChange={(v) => setRatingOpen(v)}
+        onSubmit={async (rating, feedback) => {
+          if (!problem) return;
+          try {
+            await (submitRating as any).mutateAsync({ problemId: problem.id, rating, feedback });
+          } catch (err) {
+            console.error('Failed to submit rating', err);
+          }
+        }}
+        initialRating={(problem as any).rating ?? null}
+        initialFeedback={(problem as any).feedback ?? null}
+      />
 
       <CommentThread topicId={problem.id} topicType="problem" />
       </div>

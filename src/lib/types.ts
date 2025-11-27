@@ -25,5 +25,8 @@ export interface Problem {
   location?: any; // geo field from RPC
   comments_count?: number; // Optional comments count
   user_vote?: 'upvote' | 'downvote' | null;
+  rating?: number | null;
+  feedback?: string | null;
+  user_id?: string | null;
   [key: string]: any;
 }
