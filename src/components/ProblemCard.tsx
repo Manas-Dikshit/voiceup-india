@@ -76,6 +76,16 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
               <Badge variant="outline" className={statusColors[problem.status]}>
                 {problem.status.replace("_", " ")}
               </Badge>
+              {/* show rating summary if present */}
+              {typeof (problem as any).rating === 'number' && (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <svg key={i} className={`h-4 w-4 ${i < ((problem as any).rating ?? 0) ? 'text-amber-400' : 'text-muted-foreground'}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.402 8.172L12 18.896l-7.336 3.87 1.402-8.172L.132 9.21l8.2-1.192z" />
+                    </svg>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="text-right">
