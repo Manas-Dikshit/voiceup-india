@@ -5,8 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const EarthBG = "/earth-bg.jpeg";
-
 import {
   MapPin,
   TrendingUp,
@@ -15,25 +13,30 @@ import {
   ArrowRight,
   CheckCircle,
 } from "lucide-react";
+
 import { motion } from "framer-motion";
 
-const earthShape = (
+const EarthBG = "/earth-bg.jpeg";
+
+// === BACKGROUND GLOW SHAPE ===
+const EarthShape = () => (
   <div
     style={{
       position: "absolute",
       top: "40%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      width: "140vh",
-      height: "140vh",
+      width: "150vmax",
+      height: "150vmax",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(0, 110, 255, 0.35), transparent 70%)",
-      filter: "blur(55px)",
+      background: "radial-gradient(circle, rgba(0,110,255,0.35), transparent 70%)",
+      filter: "blur(65px)",
       zIndex: 0,
     }}
   />
 );
 
+// === ANIMATION PRESETS ===
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i = 1) => ({
@@ -60,6 +63,7 @@ const Index = () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
+
     if (session) navigate("/dashboard");
   };
 
@@ -86,16 +90,15 @@ const Index = () => {
   return (
     <div className="min-h-screen text-foreground relative">
 
-      {/* 🌌 HERO + HEADER BACKGROUND (match Auth.tsx) */}
+      {/* 🌌 HERO BACKGROUND */}
       <div
         className="relative w-full min-h-[95vh] bg-cover bg-no-repeat"
         style={{
           backgroundImage:
-            "linear-gradient(to bottom, rgba(0,0,20,0.35), rgba(0,0,50,0.85)), url('/earth-bg.jpeg')",
+            "linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(15, 5, 5, 0.81)), url('/earth-bg.jpeg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          backgroundAttachment: "fixed",
         }}
       >
 
@@ -106,7 +109,7 @@ const Index = () => {
               <div className="hidden sm:block">
                 <Button
                   variant="ghost"
-                  className="px-8 rounded-full text-sm font-medium border-2 border-sky-600 bg-sky-200 text-sky-900 hover:bg-sky-100 transition"
+                  className="px-8 rounded-full text-sm font-medium bg-sky-200 text-sky-900 hover:bg-sky-100 transition"
                   onClick={() => navigate("/auth")}
                 >
                   Get Started
@@ -170,7 +173,7 @@ const Index = () => {
           </motion.div>
         </section>
 
-        {earthShape}
+        <EarthShape />
       </div>
 
       {/* 📊 STATS SECTION */}
@@ -214,7 +217,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ⭐ FEATURES SECTION (footer) */}
+      {/* ⭐ FEATURES SECTION */}
       <section className="py-24 px-6 bg-gradient-to-t from-blue-950 to-blue-900">
         <div className="container mx-auto max-w-6xl">
 
@@ -257,7 +260,9 @@ const Index = () => {
               >
                 <CardContent>
                   {item.icon}
-                  <h3 className="mt-4 text-xl font-semibold text-white">{item.title}</h3>
+                  <h3 className="mt-4 text-xl font-semibold text-white">
+                    {item.title}
+                  </h3>
                   <p className="text-gray-300 mt-2">{item.desc}</p>
                 </CardContent>
               </Card>
