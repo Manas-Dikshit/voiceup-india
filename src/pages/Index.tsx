@@ -5,8 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const EarthBG = "/earth-bg.jpeg";
-
 import {
   MapPin,
   TrendingUp,
@@ -18,30 +16,27 @@ import {
 
 import { motion } from "framer-motion";
 
-// === NEW EARTH-GLOW BACKGROUND ===
-const earthGlow: React.CSSProperties = {
-  background: `radial-gradient(circle at 50% 120%, rgba(98, 0, 234, 0.55), rgba(20, 0, 40, 0.95) 70%)`,
-  position: "relative",
-  overflow: "hidden",
-};
+const EarthBG = "/earth-bg.jpeg";
 
-const earthShape = (
+// === BACKGROUND GLOW SHAPE ===
+const EarthShape = () => (
   <div
     style={{
       position: "absolute",
       top: "40%",
       left: "50%",
       transform: "translate(-50%, -50%)",
-      width: "140vh",
-      height: "140vh",
+      width: "150vmax",
+      height: "150vmax",
       borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(0, 110, 255, 0.35), transparent 70%)",
-      filter: "blur(55px)",
+      background: "radial-gradient(circle, rgba(0,110,255,0.35), transparent 70%)",
+      filter: "blur(65px)",
       zIndex: 0,
     }}
   />
 );
 
+// === ANIMATION PRESETS ===
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i = 1) => ({
@@ -68,6 +63,7 @@ const Index = () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
+
     if (session) navigate("/dashboard");
   };
 
@@ -94,87 +90,91 @@ const Index = () => {
   return (
     <div className="min-h-screen text-foreground relative">
 
-{/* 🌌 HEADER + HERO BACKGROUND */}
-<div
-  className="relative w-full min-h-[90vh] bg-cover bg-center bg-no-repeat"
-  style={{
-    backgroundImage: "linear-gradient(to bottom, rgba(0,0,20,0.3), rgba(0,0,40,0.85)), url('/earth-bg.jpeg')",
-  }}
->
-  <div className="absolute inset-0 bg-black/20"></div>
+      {/* 🌌 HERO BACKGROUND */}
+      <div
+        className="relative w-full min-h-[95vh] bg-cover bg-no-repeat"
+        style={{
+          backgroundImage:
+            "linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(15, 5, 5, 0.81)), url('/earth-bg.jpeg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      >
 
-  {/* HEADER */}
-  <div className="relative z-10 pt-6 pb-10">
-    <Header
-      right={
-        <div className="hidden sm:block">
-          <Button
-            variant="ghost"
-            className="px-8 rounded-full text-sm font-medium border-2 border-sky-600 px-6 bg-sky-200 text-sky-900 hover:bg-sky-100 hover:border-sky-600 hover:text-sky-700 transition-colors duration-200"
-            onClick={() => navigate("/auth")}
-          >
-            Get Started
-          </Button>
+        {/* HEADER */}
+        <div className="relative z-10 pt-6 pb-10">
+          <Header
+            right={
+              <div className="hidden sm:block">
+                <Button
+                  variant="ghost"
+                  className="px-8 rounded-full text-sm font-medium bg-sky-200 text-sky-900 hover:bg-sky-100 transition"
+                  onClick={() => navigate("/auth")}
+                >
+                  Get Started
+                </Button>
+              </div>
+            }
+          />
         </div>
-      }
-    />
-  </div>
 
-  {/* HERO CONTENT */}
-  <section className="relative py-24 px-6 text-center text-white z-10">
-    <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
-      <MapPin className="h-16 w-16 text-sky-400 mx-auto mb-6 drop-shadow-xl" />
-    </motion.div>
+        {/* HERO CONTENT */}
+        <section className="relative py-24 px-6 text-center text-white z-10">
+          <motion.div initial="hidden" animate="visible" variants={fadeInUp}>
+            <MapPin className="h-16 w-16 text-sky-400 mx-auto mb-6 drop-shadow-xl" />
+          </motion.div>
 
-    <motion.h1
-      variants={fadeInUp}
-      custom={1}
-      className="text-5xl md:text-7xl font-extrabold mb-4 text-sky-100"
-    >
-      VoiceUp
-    </motion.h1>
+          <motion.h1
+            variants={fadeInUp}
+            custom={1}
+            className="text-5xl md:text-7xl font-extrabold mb-4 text-sky-100"
+          >
+            VoiceUp
+          </motion.h1>
 
-    <motion.p
-      variants={fadeInUp}
-      custom={2}
-      className="text-xl md:text-2xl text-sky-200 max-w-2xl mx-auto mb-6"
-    >
-      Empowering Citizens Through Digital Participation
-    </motion.p>
+          <motion.p
+            variants={fadeInUp}
+            custom={2}
+            className="text-xl md:text-2xl text-sky-200 max-w-2xl mx-auto mb-6"
+          >
+            Empowering Citizens Through Digital Participation
+          </motion.p>
 
-    <motion.p
-      variants={fadeInUp}
-      custom={3}
-      className="text-lg text-sky-300 max-w-3xl mx-auto mb-8"
-    >
-      Report problems, propose solutions, vote on priorities, and track progress.
-    </motion.p>
+          <motion.p
+            variants={fadeInUp}
+            custom={3}
+            className="text-lg text-sky-300 max-w-3xl mx-auto mb-8"
+          >
+            Report problems, propose solutions, vote on priorities, and track progress.
+          </motion.p>
 
-    <motion.div
-      variants={fadeInUp}
-      custom={4}
-      className="flex flex-col sm:flex-row gap-4 justify-center"
-    >
-      <Button
-        size="lg"
-        className="bg-sky-200 text-sky-900 hover:bg-sky-100 px-8 rounded-full shadow-lg hover:scale-110 transition"
-        onClick={() => navigate("/auth")}
-      >
-        Get Started <ArrowRight className="ml-2 h-5 w-5" />
-      </Button>
+          <motion.div
+            variants={fadeInUp}
+            custom={4}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <Button
+              size="lg"
+              className="bg-sky-200 text-sky-900 hover:bg-sky-100 px-8 rounded-full shadow-lg hover:scale-110 transition"
+              onClick={() => navigate("/auth")}
+            >
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
 
-      <Button
-        size="lg"
-        variant="outline"
-        className="border-2 border-sky-300 text-sky-200 hover:bg-sky-300/10 px-8 rounded-full hover:scale-105 transition"
-        onClick={() => navigate("/dashboard")}
-      >
-        View Problems
-      </Button>
-    </motion.div>
-  </section>
-</div>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-sky-300 text-sky-200 hover:bg-sky-300/10 px-8 rounded-full hover:scale-105 transition"
+              onClick={() => navigate("/dashboard")}
+            >
+              View Problems
+            </Button>
+          </motion.div>
+        </section>
 
+        <EarthShape />
+      </div>
 
       {/* 📊 STATS SECTION */}
       <section className="py-20 bg-gradient-to-b from-blue-900/30 to-blue-950/60 backdrop-blur-md">
@@ -217,7 +217,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ⭐ FEATURES SECTION (footer area) */}
+      {/* ⭐ FEATURES SECTION */}
       <section className="py-24 px-6 bg-gradient-to-t from-blue-950 to-blue-900">
         <div className="container mx-auto max-w-6xl">
 
@@ -236,23 +236,22 @@ const Index = () => {
             </p>
           </motion.div>
 
-          {/* ⭐ Boxes CENTERED correctly */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center mx-auto">
             {[
               {
                 icon: <MapPin className="h-12 w-12 text-sky-300" />,
                 title: "Report Problems",
-                desc: "Easily report local issues with photos, location, and detailed descriptions.",
+                desc: "Easily report local issues with photos, location, and descriptions.",
               },
               {
                 icon: <Vote className="h-12 w-12 text-green-300" />,
                 title: "Vote & Discuss",
-                desc: "Vote on solutions and join discussions to prioritize community action.",
+                desc: "Vote on solutions and engage in meaningful community discussions.",
               },
               {
                 icon: <TrendingUp className="h-12 w-12 text-blue-300" />,
                 title: "Track Progress",
-                desc: "Follow real-time updates as problems move from report to resolution.",
+                desc: "See real-time updates as issues go from report to resolution.",
               },
             ].map((item, index) => (
               <Card
@@ -261,7 +260,9 @@ const Index = () => {
               >
                 <CardContent>
                   {item.icon}
-                  <h3 className="mt-4 text-xl font-semibold text-white">{item.title}</h3>
+                  <h3 className="mt-4 text-xl font-semibold text-white">
+                    {item.title}
+                  </h3>
                   <p className="text-gray-300 mt-2">{item.desc}</p>
                 </CardContent>
               </Card>
