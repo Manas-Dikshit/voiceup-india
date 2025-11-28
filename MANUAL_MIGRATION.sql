@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS public.problems (
   votes_count INTEGER DEFAULT 0,
   ai_tags TEXT[] DEFAULT '{}',
   ai_summary TEXT,
+  is_flagged BOOLEAN DEFAULT FALSE,
+  is_deleted BOOLEAN DEFAULT FALSE,
+  quality_score FLOAT,
+  moderation_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

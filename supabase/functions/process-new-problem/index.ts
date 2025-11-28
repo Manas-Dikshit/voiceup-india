@@ -71,8 +71,8 @@ serve(async (req) => {
 
     // 3. Create a Supabase client with the service role key
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("VITE_SUPABASE_URL") ?? "",
+      Deno.env.get("VITE_SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     // 4. Update the problem record with the AI-generated data
