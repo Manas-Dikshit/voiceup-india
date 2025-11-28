@@ -40,3 +40,22 @@
 .read-the-docs {
   color: #888;
 }
+
+.earth-glow {
+  background: radial-gradient(circle at 50% 120%, rgba(98, 0, 234, 0.55), rgba(20, 0, 40, 0.95) 70%);
+  position: relative;
+  overflow: hidden;
+}
+
+.earth-shape {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140vh;
+  height: 140vh;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(147, 71, 255, 0.35), transparent 70%);
+  filter: blur(45px);
+  z-index: 0;
+}

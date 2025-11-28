@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, CheckCircle, Clock, List } from "lucide-react";
 import AIInsights from "@/components/ministry/AIInsights";
+import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 
 interface DashboardStats {
   total_problems: number;
@@ -97,6 +98,11 @@ const MinistryDashboard = () => {
       </div>
       <div className="mt-8">
         <AIInsights />
+      </div>
+      {/* Civic Knowledge Graph Explorer for ministries */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">Civic Knowledge Graph</h2>
+        <CivicGraphExplorer />
       </div>
     </div>
   );

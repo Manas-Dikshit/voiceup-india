@@ -15,6 +15,15 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        goo: "relative overflow-hidden transition-all duration-500 ease-in-out bg-primary text-primary-foreground hover:bg-primary/90 border-2 border-primary-foreground/20",
+        glass:
+          "bg-[hsl(var(--glass))] backdrop-blur-[8px] saturate-[120%] border border-border/20 text-foreground hover:bg-border/20",
+        "glass-success":
+          "bg-success/30 backdrop-blur-[8px] saturate-[120%] border border-success/40 text-success-foreground hover:bg-success/40",
+        "glass-destructive":
+          "bg-destructive/30 backdrop-blur-[8px] saturate-[120%] border border-destructive/40 text-destructive-foreground hover:bg-destructive/40",
+        "glass-primary":
+          "bg-primary/30 backdrop-blur-[8px] saturate-[120%] border border-primary/40 text-primary-foreground hover:bg-primary/40",
       },
       size: {
         default: "h-10 px-4 py-2",
