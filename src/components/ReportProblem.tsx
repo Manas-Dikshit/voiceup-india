@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Upload, X, Loader2, CheckCircle } from "lucide-react";
-import ManualLocationPicker from "@/components/location/ManualLocationPicker";
+import LocationPicker from "@/components/location/LocationPicker";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ReportProblemProps {
@@ -258,10 +258,10 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             {locationLoading ? "Detecting..." : "Use Current Location"}
           </Button>
 
-          {/* Manual Location Picker */}
+          {/* Manual Location Picker (Leaflet + search) */}
           <div className="space-y-2">
             <Label>Add Location Manually</Label>
-            <ManualLocationPicker
+            <LocationPicker
               initial={formData.latitude && formData.longitude ? { lat: formData.latitude, lng: formData.longitude } : null}
               onConfirm={(lat, lng) => {
                 setFormData((prev) => ({ ...prev, latitude: lat, longitude: lng }));
