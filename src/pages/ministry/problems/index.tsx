@@ -9,12 +9,20 @@ const MinistryProblemsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
 
+  const [filter, setFilter] = useState<'all' | 'flagged' | 'hidden' | 'removed'>('all');
   const fetchProblems = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("problems")
-      .select("id, title, status, category, created_at");
-
+      .select("id, title, status, category, created_at, is_flagged, quality_score, moderation_reason, moderated_at, is_deleted");
+    if (filter === 'flagged') {
+      query = query.eq('is_flagged', true);
+    } else if (filter === 'hidden') {
+      query = query.eq('is_deleted', true);
+    } else if (filter === 'removed') {
+      query = query.eq('status', 'removed');
+    }
+    const { data, error } = await query;
     if (error) {
       console.error("Error fetching problems:", error);
     } else {
@@ -25,7 +33,7 @@ const MinistryProblemsPage = () => {
 
   useEffect(() => {
     fetchProblems();
-  }, []);
+  }, [filter]);
 
   const handleOpenStatusModal = (problem: Problem) => {
     setSelectedProblem(problem);
@@ -47,6 +55,20 @@ const MinistryProblemsPage = () => {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Problem Management</h1>
+      <div className="mb-4 flex gap-2 items-center">
+        <label htmlFor="filter" className="font-medium">Filter:</label>
+        <select
+          id="filter"
+          value={filter}
+          onChange={e => setFilter(e.target.value as any)}
+          className="border rounded px-2 py-1"
+        >
+          <option value="all">All</option>
+          <option value="flagged">Flagged</option>
+          <option value="hidden">Hidden</option>
+          <option value="removed">Removed</option>
+        </select>
+      </div>
       <DataTable
         columns={columns}
         data={problems}

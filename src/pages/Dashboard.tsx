@@ -79,6 +79,7 @@ const fetchProblems = async () => {
   const { data, error } = await supabase
     .from("problems")
     .select("*")
+    .eq("is_flagged", false)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];

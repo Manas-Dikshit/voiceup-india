@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, CheckCircle, Clock, List } from "lucide-react";
+import ModerationQueue from "@/components/ModerationQueue";
 import AIInsights from "@/components/ministry/AIInsights";
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 
@@ -22,7 +23,13 @@ const MinistryDashboard = () => {
       if (error) {
         console.error("Error fetching dashboard stats:", error);
       } else {
-        setStats(data);
+        try {
+          // If data is a stringified JSON, parse it
+          const parsed = typeof data === "string" ? JSON.parse(data) : data;
+          setStats(parsed as DashboardStats);
+        } catch (e) {
+          console.error("Failed to parse dashboard stats:", e);
+        }
       }
       setLoading(false);
     };
@@ -99,8 +106,19 @@ const MinistryDashboard = () => {
       <div className="mt-8">
         <AIInsights />
       </div>
-      {/* Civic Knowledge Graph Explorer for ministries */}
+      {/* Moderation Queue for ministries */}
       <div className="mt-8">
+        <h2 className="text-xl font-bold mb-4">🧹 Moderation Queue</h2>
+        {/* Show flagged/hidden/removed content, scores, reasons, with approve/remove actions */}
+        {/* You can add tabs or keep as a section below the dashboard cards */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Flagged Problems</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ModerationQueue />
+          </CardContent>
+        </Card>
         <h2 className="text-xl font-bold mb-4">Civic Knowledge Graph</h2>
         <CivicGraphExplorer />
       </div>
