@@ -102,15 +102,80 @@ const mockImpactData: ImpactRow[] = [
 ];
 
 const MinistryDashboard = () => {
-  const { t, i18n } = useTranslation();
-  const [filters, setFilters] = useState<MinistryMapFilters>({});
-  const [mapData, setMapData] = useState<Correlation[]>([]);
-  const [date, setDate] = useState<DateRange | undefined>();
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [cityInput, setCityInput] = useState("");
-  const [debouncedCity] = useDebounce(cityInput, 500);
+    // Live crisis zones state
+    const [zones, setZones] = useState([]);
+    const [zonesLoading, setZonesLoading] = useState(true);
 
-  // Emergency system state
+    useEffect(() => {
+      let channel;
+      const fetchZones = async () => {
+        setZonesLoading(true);
+        const { data, error } = await supabase
+          .from("crisis_zones")
+          .select("*")
+          .order("risk_level", { ascending: false })
+          .limit(10);
+        setZones(data ?? []);
+        setZonesLoading(false);
+      };
+      fetchZones();
+
+      // Subscribe to real-time changes
+      channel = supabase
+        .channel("crisis-zones-feed")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "crisis_zones" },
+          () => fetchZones()
+        )
+        .subscribe();
+      return () => {
+        if (channel) supabase.removeChannel(channel);
+      };
+    }, []);
+  // Emergency incidents state
+  const [incidents, setIncidents] = useState([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      setIncidentsLoading(true);
+      const { data, error } = await supabase
+        .from("emergency_incidents")
+        .select("*")
+        .order("reported_at", { ascending: false })
+        .limit(10);
+      setIncidents(data ?? []);
+      setIncidentsLoading(false);
+    };
+    fetchIncidents();
+  }, []);
+
+  {/* Emergency Response Map Section */}
+  <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        Emergency Response Map
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      {zones.length > 0 ? (
+        <CrisisMap
+          incidents={incidents}
+          zones={zones}
+          selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
+        />
+      ) : (
+        <div className="text-center text-muted-foreground py-8">
+          No crisis zones found. Please check your Supabase data.
+        </div>
+      )}
+      {zonesLoading && (
+        <div className="text-xs text-muted-foreground mt-2">Loading zones...</div>
+      )}
+    </CardContent>
+  </Card>
+  // Emergency system state (must be at the top for all usages)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
@@ -166,10 +231,76 @@ const MinistryDashboard = () => {
     fetchDeployments();
   }, [selectedIncidentId]);
 
-  // Fetch incidents from Supabase
-  useEffect(() => {
-    const fetchIncidents = async () => {
-      setIncidentsLoading(true);
+    // Resource deployments state
+    const [deployments, setDeployments] = useState([]);
+    const [deploymentsLoading, setDeploymentsLoading] = useState(false);
+
+    // Fetch deployments for selected incident
+    useEffect(() => {
+      if (!selectedIncidentId) {
+        setDeployments([]);
+        return;
+      }
+      setDeploymentsLoading(true);
+      const fetchDeployments = async () => {
+        const { data, error } = await supabase
+          .from("resource_deployments")
+          .select("*")
+          .eq("incident_id", selectedIncidentId)
+          .order("assigned_at", { ascending: false });
+        setDeployments(data ?? []);
+        setDeploymentsLoading(false);
+      };
+      fetchDeployments();
+    }, [selectedIncidentId]);
+                {/* Emergency Resource Dispatcher Section */}
+                <Card className="bg-card/70 border border-border/30 backdrop-blur-md mt-8">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      Resource Dispatcher
+                      {deploymentsLoading && (
+                        <span className="text-xs text-muted-foreground ml-auto">Loading...</span>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResourceDispatcher
+                      deployments={deployments}
+                      isLoading={deploymentsLoading}
+                    />
+                  </CardContent>
+                </Card>
+
+
+    // Fetch recent alerts from Supabase
+    useEffect(() => {
+      const fetchAlerts = async () => {
+        setAlertsLoading(true);
+        const { data, error } = await supabase
+          .from("alerts")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (!error) setRecentAlerts(data ?? []);
+        setAlertsLoading(false);
+      };
+      fetchAlerts();
+    }, []);
+
+    // Broadcast handler for AlertBroadcaster
+    const handleBroadcast = async (alertType: string, message: string, radiusKm: number) => {
+      // You can add incident selection logic here
+      const incidentId = selectedIncidentId ?? "ministry-incident";
+      await supabase.from("alerts").insert([
+        {
+          incident_id: incidentId,
+          alert_type: alertType,
+          message,
+          broadcast_status: "sent",
+          recipients_count: 0,
+        },
+      ]);
+      // Optionally, refetch alerts
       const { data } = await supabase
         .from("emergency_incidents")
         .select("*")
