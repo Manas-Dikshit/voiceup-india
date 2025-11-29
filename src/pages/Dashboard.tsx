@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
 import { useEffect, useState, useRef } from "react";
-=======
-import { useEffect, useState } from "react";
 import { useTranslation } from 'react-i18next';
->>>>>>> Stashed changes
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -550,45 +546,18 @@ const Dashboard = () => {
       <Header
         right={
           <>
-<<<<<<< Updated upstream
-            {/* Desktop / tablet: show full details */}
-            <div className="hidden sm:flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Award className="h-3 w-3" />
-                  <span>{pointsDisplay} points</span>
-                </div>
-=======
             <div className="text-right">
               <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Award className="h-3 w-3" />
                 <span>{pointsDisplay} {t('dashboard.points')}</span>
->>>>>>> Stashed changes
               </div>
-              <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
             </div>
-
-            {/* Small screens: compact icons only */}
-            <div className="flex sm:hidden items-center gap-2">
-              <NotificationBell />
-              <Button variant="outline" size="sm" onClick={handleSignOut} className="p-2">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-<<<<<<< Updated upstream
-=======
             <NotificationBell />
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
               {t('buttons.signOut')}
             </Button>
->>>>>>> Stashed changes
           </>
         }
       />
@@ -789,38 +758,21 @@ const Dashboard = () => {
 
         {/* Problems List */}
         <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
-<<<<<<< Updated upstream
-          <TabsList className="flex gap-2 overflow-x-auto no-scrollbar px-1">
-            <TabsTrigger value="all" className="whitespace-nowrap flex-shrink-0">All Problems</TabsTrigger>
-            <TabsTrigger value="nearby" className="whitespace-nowrap flex-shrink-0">Nearby</TabsTrigger>
-            <TabsTrigger value="trending" className="whitespace-nowrap flex-shrink-0">Trending</TabsTrigger>
-            <TabsTrigger value="insights" className="whitespace-nowrap flex-shrink-0">🗺️ Local Insights</TabsTrigger>
-=======
           <TabsList>
             <TabsTrigger value="all">{t('dashboard.tabs.allProblems')}</TabsTrigger>
             <TabsTrigger value="nearby">{t('dashboard.tabs.nearby')}</TabsTrigger>
             <TabsTrigger value="trending">{t('dashboard.tabs.trending')}</TabsTrigger>
             <TabsTrigger value="insights">{t('dashboard.tabs.insights')}</TabsTrigger>
->>>>>>> Stashed changes
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
             <div className="space-y-4">
               {(Array.isArray(problems) ? problems : []).length === 0 ? (
                 <Card>
-<<<<<<< Updated upstream
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    {searchTerm || selectedCategory
-                      ? "No problems found matching your filters."
-                      : "No problems reported yet. Be the first to report one!"}
+                    {t('dashboard.noProblemsYet')}
                   </CardContent>
                 </Card>
-=======
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                      {t('dashboard.noProblemsYet')}
-                    </CardContent>
-                  </Card>
->>>>>>> Stashed changes
               ) : (
                 (Array.isArray(problems) ? problems : []).map((raw: any) => {
                   const normalized = normalizeProblem(raw);

@@ -1,11 +1,6 @@
-<<<<<<< Updated upstream
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { motion } from "framer-motion";
-=======
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
->>>>>>> Stashed changes
 import {
   Card,
   CardContent,
@@ -120,31 +115,7 @@ const MinistryDashboard = () => {
   // --------------- Ensure Fallback if Empty ---------------
   const impactRows: ImpactRow[] = useMemo(() => {
     const rawData = (impactResponse as any)?.data || impactResponse;
-      if (Array.isArray(rawData) && rawData.length > 0) return rawData; 
-      const impactRows = Array.isArray(impactTracker) && impactTracker.length > 0
-        ? impactTracker
-        : impactTracker && impactTracker.data && Array.isArray(impactTracker.data) && impactTracker.data.length > 0
-          ? impactTracker.data
-          : [
-              {
-                id: "mock1",
-                category: "Water",
-                location: "Ward 12",
-                resolved_count: 3,
-                pending_count: 1,
-                avg_response_time: 4.2,
-                engagement_score: 7.5,
-              },
-              {
-                id: "mock2",
-                category: "Sanitation",
-                location: "Ward 7",
-                resolved_count: 2,
-                pending_count: 2,
-                avg_response_time: 6.1,
-                engagement_score: 5.8,
-              },
-            ];
+    if (Array.isArray(rawData) && rawData.length > 0) return rawData;
     return mockImpactData; // Always fallback to mock
   }, [impactResponse]);
 
@@ -244,11 +215,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-<<<<<<< Updated upstream
-          <CardTitle>Date Range</CardTitle>
-=======
           <CardTitle className="text-base font-medium">{t('ministry.dateRange')}</CardTitle>
->>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <DateRangePicker date={date} onDateChange={setDate} />
@@ -257,11 +224,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-<<<<<<< Updated upstream
-          <CardTitle>Categories</CardTitle>
-=======
           <CardTitle className="text-base font-medium">{t('ministry.categories')}</CardTitle>
->>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <MultiSelect
@@ -275,11 +238,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-<<<<<<< Updated upstream
-          <CardTitle>City</CardTitle>
-=======
           <CardTitle className="text-base font-medium">{t('ministry.city')}</CardTitle>
->>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <Input
@@ -296,7 +255,7 @@ const MinistryDashboard = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-muted/10 to-background">
       <Header
-        left={
+        nav={
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -310,15 +269,10 @@ const MinistryDashboard = () => {
         }
         right={
           <div className="text-right">
-<<<<<<< Updated upstream
-            <p className="text-sm font-medium">Ministry Official</p>
-            <p className="text-xs text-muted-foreground">Admin Access</p>
-=======
             <p className="text-sm font-medium text-foreground">
               {t('ministry.ministryOfficial')}
             </p>
             <p className="text-xs text-muted-foreground">{t('ministry.adminAccess')}</p>
->>>>>>> Stashed changes
           </div>
         }
       />
@@ -331,64 +285,36 @@ const MinistryDashboard = () => {
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-b border-border/20">
             {[
               {
-<<<<<<< Updated upstream
-                title: "Top Correlation Pair",
+                title: t('ministry.topCorrelationPair'),
                 value: topCorrelation
-                  ? `${topCorrelation.category_a ?? "N/A"} & ${
-                      topCorrelation.category_b ?? "N/A"
-                    }`
-                  : "N/A",
+                  ? `${topCorrelation.category_a} & ${topCorrelation.category_b}`
+                  : t('ministry.na'),
                 subtitle: topCorrelation
-                  ? `in ${topCorrelation.city ?? "—"}`
-                  : "",
+                  ? t('ministry.inCity', { city: topCorrelation.city || t('ministry.na') })
+                  : '',
                 icon: <Layers className="h-5 w-5 text-primary" />,
               },
               {
-                title: "Highest Score",
-                value:
-                  topCorrelation?.correlation_score?.toFixed(2) ?? "N/A",
-                subtitle: "Peak correlation score",
+                title: t('ministry.highestScore'),
+                value: topCorrelation
+                  ? topCorrelation.correlation_score.toFixed(2)
+                  : t('ministry.na'),
+                subtitle: t('ministry.peakDataCorrelation'),
                 icon: <BarChart3 className="h-5 w-5 text-primary" />,
               },
               {
-                title: "Average Correlation",
+                title: t('ministry.averageCorrelation'),
                 value: avgCorrelation.toFixed(2),
-                subtitle: "Across all datasets",
+                subtitle: t('ministry.acrossAllCategories'),
                 icon: <MapPin className="h-5 w-5 text-primary" />,
               },
-            ].map((stat, i) => (
-=======
-                  title: t('ministry.topCorrelationPair'),
-                  value: topCorrelation
-                    ? `${topCorrelation.category_a} & ${topCorrelation.category_b}`
-                    : t('ministry.na'),
-                  subtitle: topCorrelation
-                    ? t('ministry.inCity', { city: topCorrelation.city || t('ministry.na') })
-                    : '',
-                  icon: <Layers className="h-5 w-5 text-primary" />,
-                },
-                {
-                  title: t('ministry.highestScore'),
-                  value: topCorrelation
-                    ? topCorrelation.correlation_score.toFixed(2)
-                    : t('ministry.na'),
-                  subtitle: t('ministry.peakDataCorrelation'),
-                  icon: <BarChart3 className="h-5 w-5 text-primary" />,
-                },
-                {
-                  title: t('ministry.averageCorrelation'),
-                  value: avgCorrelation.toFixed(2),
-                  subtitle: t('ministry.acrossAllCategories'),
-                  icon: <MapPin className="h-5 w-5 text-primary" />,
-                },
             ].map((stat, idx) => (
->>>>>>> Stashed changes
               <motion.div
-                key={i}
+                key={idx}
                 variants={fadeIn}
                 initial="hidden"
                 animate="visible"
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: idx * 0.1 }}
               >
                 <Card className="bg-card/70 border border-border/40 rounded-2xl backdrop-blur-lg hover:shadow-md">
                   <CardHeader>
