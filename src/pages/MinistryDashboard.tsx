@@ -113,7 +113,31 @@ const MinistryDashboard = () => {
   // --------------- Ensure Fallback if Empty ---------------
   const impactRows: ImpactRow[] = useMemo(() => {
     const rawData = (impactResponse as any)?.data || impactResponse;
-    if (Array.isArray(rawData) && rawData.length > 0) return rawData;
+      if (Array.isArray(rawData) && rawData.length > 0) return rawData; 
+      const impactRows = Array.isArray(impactTracker) && impactTracker.length > 0
+        ? impactTracker
+        : impactTracker && impactTracker.data && Array.isArray(impactTracker.data) && impactTracker.data.length > 0
+          ? impactTracker.data
+          : [
+              {
+                id: "mock1",
+                category: "Water",
+                location: "Ward 12",
+                resolved_count: 3,
+                pending_count: 1,
+                avg_response_time: 4.2,
+                engagement_score: 7.5,
+              },
+              {
+                id: "mock2",
+                category: "Sanitation",
+                location: "Ward 7",
+                resolved_count: 2,
+                pending_count: 2,
+                avg_response_time: 6.1,
+                engagement_score: 5.8,
+              },
+            ];
     return mockImpactData; // Always fallback to mock
   }, [impactResponse]);
 

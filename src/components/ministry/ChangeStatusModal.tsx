@@ -26,46 +26,55 @@ const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalPro
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      if (!session) throw new Error('Not authenticated');
 
-      // 1. Update problem status
+      // Update problem status directly
       const { error: updateError } = await supabase
-        .from("problems")
+        .from('problems')
         .update({ status: newStatus })
-        .eq("id", problem.id);
+        .eq('id', problem.id);
       if (updateError) throw updateError;
 
-      // 2. Add to audit log
-      const { error: auditError } = await supabase.from("audit_logs").insert({
-        actor_id: session.user.id,
-        action_type: "status_change",
-        target_id: problem.id,
-        details: `Status changed from ${problem.status} to ${newStatus}. Comment: ${comment}`,
-      });
-      if (auditError) console.error("Failed to create audit log:", auditError.message); // Non-critical
-
-      // 3. Create notification for the user who reported the problem
-      // First, get the user_id from the problems table
-      const { data: problemData } = await supabase.from("problems").select("user_id").eq("id", problem.id).single();
-      if (problemData?.user_id) {
-        const { error: notificationError } = await supabase.from("notifications").insert({
-          user_id: problemData.user_id,
-          message: `The status of your reported problem "${problem.title}" has been updated to ${newStatus}.`,
-          type: "status_update",
+      // Add to audit log
+      try {
+        await supabase.from('audit_logs').insert({
+          actor_id: session.user.id,
+          action_type: 'status_change',
+          target_id: problem.id,
+          details: `Status changed from ${problem.status} to ${newStatus}. Comment: ${comment}`,
         });
-        if (notificationError) console.error("Failed to create notification:", notificationError.message); // Non-critical
+      } catch (e) {
+        console.error('audit log error', e);
+      }
+
+      // Create notification for problem owner
+      try {
+        const { data: problemData } = await supabase
+          .from('problems')
+          .select('user_id')
+          .eq('id', problem.id)
+          .single();
+        if (problemData?.user_id) {
+          await supabase.from('notifications').insert({
+            user_id: problemData.user_id,
+            message: `The status of your reported problem "${problem.title}" has been updated to ${newStatus}.`,
+            type: 'status_update',
+          });
+        }
+      } catch (e) {
+        console.error('notification error', e);
       }
 
       toast({
-        title: "Status Updated",
+        title: 'Status Updated',
         description: `Problem status has been changed to ${newStatus}.`,
       });
       onSuccess();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);

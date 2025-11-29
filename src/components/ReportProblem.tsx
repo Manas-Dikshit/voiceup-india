@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Upload, X, Loader2, CheckCircle2, Sparkles, Compass, Navigation } from "lucide-react";
+import { MapPin, Upload, X, Loader2, CheckCircle2, Sparkles, Compass, Navigation, Mic, MicOff } from "lucide-react";
 import LocationPicker from "@/components/location/LocationPicker";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -66,6 +66,43 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const [locationStrategy, setLocationStrategy] = useState<"current" | "manual">("current");
   const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Speech recognition (Web Speech API) state and helpers
+  const [speechSupported, setSpeechSupported] = useState<boolean>(false);
+  const [recognizing, setRecognizing] = useState<boolean>(false);
+  const [transcript, setTranscript] = useState<string>("");
+  const recognitionRef = useRef<any>(null);
+
+  const startRecognition = useCallback(() => {
+    try {
+      if (recognitionRef.current) {
+        setTranscript("");
+        recognitionRef.current.start();
+        setRecognizing(true);
+      }
+    } catch (e) {
+      console.error("startRecognition error", e);
+      setRecognizing(false);
+    }
+  }, []);
+
+  const stopRecognition = useCallback(() => {
+    try {
+      if (recognitionRef.current) recognitionRef.current.stop();
+    } catch (e) {
+      console.error("stopRecognition error", e);
+    } finally {
+      setRecognizing(false);
+    }
+  }, []);
+
+  const clearTranscript = useCallback(() => setTranscript(""), []);
+
+  const insertTranscriptIntoDescription = useCallback(() => {
+    if (!transcript) return;
+    setFormData((prev) => ({ ...prev, description: `${prev.description}${prev.description ? "\n" : ""}${transcript}` }));
+    setTranscript("");
+  }, [transcript]);
 
   const handleAttachmentChange = (file: File | null) => {
     setAttachment(file);
@@ -307,6 +344,53 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
     }
   }, [manualState, manualDistrict]);
 
+  useEffect(() => {
+    // Initialize Web Speech API recognition if available (client-side only)
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+      return;
+    }
+    setSpeechSupported(true);
+    const recog = new SpeechRecognition();
+    recog.continuous = false;
+    recog.interimResults = true;
+    recog.lang = "en-IN";
+    recog.onresult = (event: any) => {
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const res = event.results[i];
+        if (res.isFinal) final += res[0].transcript;
+        else interim += res[0].transcript;
+      }
+      setTranscript((prev) => (prev ? prev + " " + final : (final || interim)));
+    };
+    recog.onerror = (e: any) => {
+      console.error("Speech recognition error", e);
+      setRecognizing(false);
+    };
+    recog.onend = () => {
+      setRecognizing(false);
+    };
+    recognitionRef.current = recog;
+    return () => {
+      try {
+        if (recognitionRef.current) {
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onend = null;
+          recognitionRef.current.onerror = null;
+          try {
+            recognitionRef.current.abort?.();
+          } catch (e) {}
+        }
+      } catch (e) {
+        // ignore cleanup errors
+      }
+    };
+  }, []);
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-background to-background/80 backdrop-blur-xl shadow-2xl">
@@ -378,6 +462,35 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                   onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
                   required
                 />
+
+                {/* Speech-to-text toolbar */}
+                <div className="flex flex-col gap-2">
+                  {speechSupported ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant={recognizing ? "destructive" : "outline"}
+                        size="sm"
+                        onClick={() => (recognizing ? stopRecognition() : startRecognition())}
+                        className="flex items-center gap-2"
+                      >
+                        {recognizing ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                        {recognizing ? "Stop" : "Record"}
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={clearTranscript} className="text-muted-foreground">Clear</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={insertTranscriptIntoDescription} disabled={!transcript} className="ml-auto">Insert</Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Voice input not supported in this browser.</p>
+                  )}
+
+                  {transcript && (
+                    <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-sm text-foreground">
+                      <p className="font-medium">Transcript preview</p>
+                      <p className="whitespace-pre-wrap text-sm mt-1">{transcript}</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
