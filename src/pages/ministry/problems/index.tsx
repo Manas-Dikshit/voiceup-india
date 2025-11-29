@@ -61,12 +61,13 @@ const MinistryProblemsPage = () => {
           id="filter"
           value={filter}
           onChange={e => setFilter(e.target.value as any)}
-          className="border rounded px-2 py-1"
+          className="border rounded px-2 py-1  text-black"
+          style={{ color: 'black' }}
         >
-          <option value="all">All</option>
-          <option value="flagged">Flagged</option>
-          <option value="hidden">Hidden</option>
-          <option value="removed">Removed</option>
+          <option value="all" className="text-black">All</option>
+          <option value="flagged" className="text-black">Flagged</option>
+          <option value="hidden" className="text-black">Hidden</option>
+          <option value="removed" className="text-black">Removed</option>
         </select>
       </div>
       <DataTable

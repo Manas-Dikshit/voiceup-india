@@ -410,29 +410,40 @@ const Dashboard = () => {
   const activeProblemsLabel = position ? "In your area" : "Across VoiceUp";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header
         right={
           <>
-            <div className="text-right">
-              <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Award className="h-3 w-3" />
-                <span>{pointsDisplay} points</span>
+            {/* Desktop / tablet: show full details */}
+            <div className="hidden sm:flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Award className="h-3 w-3" />
+                  <span>{pointsDisplay} points</span>
+                </div>
               </div>
+              <NotificationBell />
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
-            <NotificationBell />
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+
+            {/* Small screens: compact icons only */}
+            <div className="flex sm:hidden items-center gap-2">
+              <NotificationBell />
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="p-2">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </>
         }
       />
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-8 pb-24">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-primary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -484,7 +495,7 @@ const Dashboard = () => {
         <div className="mb-6">
           <Button
             size="lg"
-            className="w-full md:w-auto"
+            className="w-full sm:w-auto"
             onClick={() => setShowReportForm(true)}
             variant="glass-primary"
           >
@@ -494,11 +505,11 @@ const Dashboard = () => {
         </div>
         {/* Problems List */}
         <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
-          <TabsList>
-            <TabsTrigger value="all">All Problems</TabsTrigger>
-            <TabsTrigger value="nearby">Nearby</TabsTrigger>
-            <TabsTrigger value="trending">Trending</TabsTrigger>
-            <TabsTrigger value="insights">🗺️ Local Insights</TabsTrigger>
+          <TabsList className="flex gap-2 overflow-x-auto no-scrollbar px-1">
+            <TabsTrigger value="all" className="whitespace-nowrap flex-shrink-0">All Problems</TabsTrigger>
+            <TabsTrigger value="nearby" className="whitespace-nowrap flex-shrink-0">Nearby</TabsTrigger>
+            <TabsTrigger value="trending" className="whitespace-nowrap flex-shrink-0">Trending</TabsTrigger>
+            <TabsTrigger value="insights" className="whitespace-nowrap flex-shrink-0">🗺️ Local Insights</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
@@ -619,7 +630,7 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle>Geospatial Problem Correlations</CardTitle>
               </CardHeader>
-              <CardContent className="h-[500px] p-0">
+              <CardContent className="h-[300px] sm:h-[400px] lg:h-[500px] p-0">
                 <CorrelationMap focus={mapFocus ? { lat: mapFocus.lat, lng: mapFocus.lng, zoom: 14, id: mapFocus.id, pincode: mapFocus.pincode } : null} />
               </CardContent>
             </Card>
@@ -639,14 +650,14 @@ const Dashboard = () => {
       <Drawer>
         <DrawerTrigger asChild>
           <Button
-            className="fixed bottom-8 right-8 h-16 w-16 rounded-full shadow-lg"
+            className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 h-14 w-14 sm:h-16 sm:w-16 rounded-full shadow-lg"
             size="icon"
           >
             <MessageCircle className="h-8 w-8" />
           </Button>
         </DrawerTrigger>
-        <DrawerContent className="h-[85vh] max-h-[85vh]">
-          <div className="p-4 h-full">
+        <DrawerContent className="h-[70vh] sm:h-[85vh] max-h-[85vh]">
+          <div className="p-2 sm:p-4 h-full">
             <Chatbot 
               onSendMessage={handleBotSendMessage} 
               history={chatHistory}
@@ -656,7 +667,7 @@ const Dashboard = () => {
         </DrawerContent>
       </Drawer>
       {/* Civic Knowledge Graph Explorer for users */}
-      <div className="mt-8">
+      <div className="mt-6 sm:mt-8 px-2 sm:px-0">
         <h2 className="text-xl font-bold mb-4">Civic Knowledge Graph</h2>
         <CivicGraphExplorer />
       </div>
