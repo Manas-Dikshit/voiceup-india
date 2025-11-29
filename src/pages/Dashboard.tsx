@@ -18,6 +18,7 @@ import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
 import { Problem } from "@/lib/types";
+import { Input } from "@/components/ui/input";
 import type { ChatbotMetadata, SuggestionPublishResponse } from "@/lib/ai-suggestions";
 
 interface Profile {
@@ -91,7 +92,7 @@ const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []) => {
 const fetchProblems = async (searchTerm: string, selectedCategory: string | null) => {
   let query = supabase
     .from("problems")
-    .select("*")
+    .select<any>("*")
     .eq("is_flagged", false);
 
   if (searchTerm) {
@@ -99,7 +100,7 @@ const fetchProblems = async (searchTerm: string, selectedCategory: string | null
   }
 
   if (selectedCategory) {
-    query = query.eq("category", selectedCategory);
+    query = query.eq("category", selectedCategory as (typeof categories[number]["value"]));
   }
 
   const { data, error } = await query.order("created_at", { ascending: false });
@@ -156,8 +157,50 @@ const Dashboard = () => {
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
   const [impactStats, setImpactStats] = useState<ImpactStats | null>(null);
+  // Add impactTracker state and mock fetch logic
+  const [impactTracker, setImpactTracker] = useState<any[]>([]);
+  // Add missing states for search/filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
+
+  // Fetch impact tracker data (replace with real API as needed)
+  useEffect(() => {
+    // Example: fetch from supabase or use mock data
+    const fetchImpactTracker = async () => {
+      try {
+        // Replace with actual API call if available
+        // const { data, error } = await supabase.from('impact_tracker').select('*');
+        // if (error) throw error;
+        // setImpactTracker(data ?? []);
+        // For now, use mock data
+        setImpactTracker([
+          {
+            id: "mock1",
+            category: "Water",
+            location: "Ward 12",
+            resolved_count: 3,
+            pending_count: 1,
+            avg_response_time: 4.2,
+            engagement_score: 7.5,
+          },
+          {
+            id: "mock2",
+            category: "Sanitation",
+            location: "Ward 7",
+            resolved_count: 2,
+            pending_count: 2,
+            avg_response_time: 6.1,
+            engagement_score: 5.8,
+          },
+        ]);
+      } catch (err) {
+        setImpactTracker([]);
+      }
+    };
+    fetchImpactTracker();
+  }, []);
 
   const normalizeProblem = (raw: any): Problem => {
     let latitude: number | null = raw?.latitude ?? null;
