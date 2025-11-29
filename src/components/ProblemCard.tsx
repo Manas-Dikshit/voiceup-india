@@ -234,14 +234,14 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
               {problem.title}
             </h3>
             {/* Moderation feedback for flagged problems */}
-            {problem.is_flagged && (
+            {(problem as any).is_flagged && (
               <div className="mb-2 p-2 rounded bg-rose-100 border border-rose-300 text-rose-700 text-xs">
                 <strong>{t('problemCard.flaggedForReview')}</strong>
-                {problem.moderation_reason && (
-                  <span>: {problem.moderation_reason}</span>
+                {(problem as any).moderation_reason && (
+                  <span>: {(problem as any).moderation_reason}</span>
                 )}
-                {typeof problem.quality_score === "number" && (
-                  <span> (Score: {problem.quality_score})</span>
+                {typeof (problem as any).quality_score === "number" && (
+                  <span> (Score: {(problem as any).quality_score})</span>
                 )}
               </div>
             )}
