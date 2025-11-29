@@ -31,6 +31,7 @@ interface GraphEdge {
   source: string;
   target: string;
   strength?: number;
+  type?: string;
 }
 
 interface GraphData {
@@ -104,6 +105,7 @@ const CivicGraphExplorer: React.FC = () => {
         source: nodesMapRef.current.get(e.source)!,
         target: nodesMapRef.current.get(e.target)!,
         strength: e.strength,
+        type: e.type,
       }));
 
       // LINKS
@@ -120,6 +122,9 @@ const CivicGraphExplorer: React.FC = () => {
               .attr("stroke-opacity", 0.7)
               .attr("stroke-width", (d: any) =>
                 d.strength ? 1.5 + d.strength * 2 : 1.5
+              )
+              .attr("stroke-dasharray", (d: any) =>
+                d.type === "similar" ? "5,5" : "none"
               ),
           (update) => update.transition().duration(300),
           (exit) => exit.transition().duration(200).style("opacity", 0).remove()
