@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
+import { generateSolutionsForProblem, tryExtractProblemId } from "../_shared/ai-solutions.ts";
+import type { ChatbotMetadata } from "../../../src/lib/ai-suggestions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +11,7 @@ const corsHeaders = {
 
 // Initialize the Gemini client
 const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY"));
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -43,7 +45,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, problemId: providedProblemId, requesterId } = await req.json();
     console.log("Received message:", message);
 
     if (!message) {
@@ -54,20 +56,19 @@ serve(async (req) => {
       });
     }
 
+    const extractedProblemId = providedProblemId ?? tryExtractProblemId(message);
     const intentPrompt = `
       You are an AI assistant for VoiceUp, a civic engagement platform.
-      Your personality is helpful, concise, and friendly.
-      You have two capabilities:
-      1. General conversation: You can chat about various topics.
-      2. Data queries: You can answer questions about public data on the platform.
+      You SUPPORT THREE INTENTS ONLY:
+      1. data_query - user asks for statistics or platform metrics. Respond exactly "INTENT:DATA_QUERY".
+      2. suggest_solution - user wants AI-generated solutions for a specific problem id. Respond exactly "INTENT:SUGGEST_SOLUTION" or "INTENT:SUGGEST_SOLUTION|<problem_id>" if you can identify the UUID.
+      3. general_chat - all other small-talk or onboarding questions. Respond conversationally.
 
-      When a user asks a question, first determine their intent.
-      
-      If the user's intent is a 'data_query' (e.g., "how many problems are there?", "show me stats", "what's the top category?"), respond ONLY with the string "INTENT:DATA_QUERY".
-      
-      If the user's intent is 'general_chat' (e.g., "hello", "what is this platform?", "tell me a joke"), respond as you normally would.
+      If the requester references Problem ID, issue ID, or includes a UUID, include it after the pipe symbol.
+      If they explicitly mention "suggest", "solution", "fix", "recommendation", assume suggest_solution intent.
 
       User message: "${message}"
+      Extracted problem id from client (if any): ${extractedProblemId ?? "none"}
     `;
 
     console.log("Determining intent with Gemini...");
@@ -77,11 +78,39 @@ serve(async (req) => {
     console.log("Intent determined:", intent);
 
     let botResponse;
+    let metadata: ChatbotMetadata = { type: "general" };
 
     if (intent && intent.includes("INTENT:DATA_QUERY")) {
       console.log("Intent is DATA_QUERY. Fetching public stats...");
       botResponse = await getPublicStats();
       console.log("Stats fetched successfully.");
+      metadata = { type: "data_query", data: { summary: botResponse } };
+    } else if (intent && intent.includes("INTENT:SUGGEST_SOLUTION")) {
+      console.log("Intent is SUGGEST_SOLUTION");
+
+      const intentProblemId = tryExtractProblemId(intent);
+      const problemId = intentProblemId ?? extractedProblemId;
+
+      if (!problemId) {
+        console.warn("Suggestion intent detected but no problemId could be resolved.");
+        botResponse = "I need a valid problem ID to draft actionable solutions. Please provide the issue ID.";
+      } else {
+        const solutions = await generateSolutionsForProblem(problemId, requesterId);
+        const summaryLines = solutions.suggestions
+          .map((suggestion, idx) => `${idx + 1}. ${suggestion.title} — ${suggestion.description}`)
+          .join("\n");
+        botResponse = `Here are ${solutions.suggestions.length} AI-generated solution ideas for problem ${problemId}:\n${summaryLines}`;
+        metadata = {
+          type: "suggestion",
+          data: {
+            problemId,
+            suggestions: solutions.suggestions,
+            cached: solutions.cached,
+            model: solutions.model,
+            createdAt: solutions.createdAt,
+          },
+        };
+      }
     } else {
       console.log("Intent is general_chat. Forwarding to Gemini for chat...");
       // For general chat, we create a chat session
@@ -106,7 +135,7 @@ serve(async (req) => {
 
     console.log("Final bot response:", botResponse);
 
-    return new Response(JSON.stringify({ reply: botResponse }), {
+    return new Response(JSON.stringify({ reply: botResponse, metadata }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

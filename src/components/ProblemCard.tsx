@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -8,7 +8,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, ThumbsDown, MapPin, Calendar, MessageSquare } from "lucide-react";
+import {
+  ThumbsUp,
+  ThumbsDown,
+  MapPin,
+  Calendar,
+  MessageSquare,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import { useVote } from "@/hooks/useVote";
 import { Problem } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -18,6 +26,75 @@ interface ProblemCardProps {
   currentUserId?: string | null;
   onShowOnMap?: (problem: Problem) => void;
 }
+
+interface AISolution {
+  text: string;
+}
+
+interface AISolutionsResponse {
+  suggestions: AISolution[];
+  cached: boolean;
+}
+
+interface UseAISolutionsReturn {
+  loading: boolean;
+  suggestions: AISolution[];
+  cached: boolean;
+  error: string | null;
+  regenerate: () => void;
+}
+
+const useAISolutions = (problemId: string): UseAISolutionsReturn => {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [suggestions, setSuggestions] = useState<AISolution[]>([]);
+  const [cached, setCached] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSolutions = async (ignoreCache: boolean = false): Promise<void> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        "https://wfpxknccdypiwpsoyisx.supabase.co/functions/v1/generate_solutions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            problemId,
+            ignoreCache,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data: AISolutionsResponse = await response.json();
+      setSuggestions(data.suggestions ?? []);
+      setCached(data.cached ?? false);
+    } catch (err) {
+      const message: string =
+        err instanceof Error ? err.message : "Failed to fetch solutions";
+      setError(message);
+      console.warn(`[AI Solutions] Error for problem ${problemId}:`, message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (problemId) {
+      fetchSolutions();
+    }
+  }, [problemId]);
+
+  const regenerate = (): void => {
+    fetchSolutions(true);
+  };
+
+  return { loading, suggestions, cached, error, regenerate };
+};
 
 const categoryColors: Record<string, string> = {
   roads: "bg-sky-500/10 text-sky-600",
@@ -40,17 +117,99 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
-const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) => {
-  const { mutate: vote, isPending: isVoting } = useVote();
-  const currentVote = problem.user_vote ?? null;
-  const isUpvoted = currentVote === 'upvote';
-  const isDownvoted = currentVote === 'downvote';
+const SkeletonLoader: React.FC = () => (
+  <div className="space-y-2">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div
+        key={i}
+        className="h-3 rounded-full bg-gray-700 animate-pulse"
+        style={{ width: `${75 + Math.random() * 25}%` }}
+      />
+    ))}
+  </div>
+);
 
-  const handleVote = (voteType: 'upvote' | 'downvote') => {
+interface AISolutionsSectionProps {
+  loading: boolean;
+  suggestions: AISolution[];
+  cached: boolean;
+  error: string | null;
+  onRegenerate: () => void;
+}
+
+const AISolutionsSection: React.FC<AISolutionsSectionProps> = ({
+  loading,
+  suggestions,
+  cached,
+  error,
+  onRegenerate,
+}) => {
+  return (
+    <div className="mt-4 pt-4 border-t border-gray-800">
+      <div className="flex items-center justify-between mb-3 gap-3">
+        <h4 className="text-sm font-semibold text-gray-100 flex items-center gap-2">
+          💡 AI Suggested Solutions
+          {cached && (
+            <Badge className="text-xs bg-blue-500/20 text-blue-300 border-blue-500/40">
+              Cached
+            </Badge>
+          )}
+        </h4>
+        <button
+          onClick={onRegenerate}
+          disabled={loading}
+          className="text-sm text-blue-400 hover:text-blue-300 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          title="Regenerate AI suggestions"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Regenerate</span>
+        </button>
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {!error && loading ? (
+        <SkeletonLoader />
+      ) : !error && suggestions.length > 0 ? (
+        <div className="space-y-2">
+          {suggestions.map((suggestion, idx) => (
+            <div
+              key={idx}
+              className="rounded-xl border border-gray-700 bg-gray-800 p-3 text-gray-200 text-sm leading-relaxed hover:bg-gray-800/80 hover:border-gray-600 transition"
+            >
+              {suggestion.text}
+            </div>
+          ))}
+        </div>
+      ) : !error && suggestions.length === 0 && !loading ? (
+        <p className="text-sm text-gray-400 italic">No AI solutions available.</p>
+      ) : null}
+    </div>
+  );
+};
+
+const ProblemCard: React.FC<ProblemCardProps> = ({
+  problem,
+  currentUserId,
+  onShowOnMap,
+}) => {
+  const { mutate: vote, isPending: isVoting } = useVote();
+  const { loading: aiLoading, suggestions, cached, error: aiError, regenerate } =
+    useAISolutions(problem.id);
+  const currentVote = problem.user_vote ?? null;
+  const isUpvoted = currentVote === "upvote";
+  const isDownvoted = currentVote === "downvote";
+
+  const handleVote = (voteType: "upvote" | "downvote"): void => {
     vote({ problemId: problem.id, voteType, currentUserId, currentVote });
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-IN", {
       year: "numeric",
@@ -65,10 +224,13 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
         <div className="absolute -left-12 top-0 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-secondary/10 blur-3xl" />
       </div>
+
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground mb-2">{problem.title}</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              {problem.title}
+            </h3>
             {/* Moderation feedback for flagged problems */}
             {problem.is_flagged && (
               <div className="mb-2 p-2 rounded bg-rose-100 border border-rose-300 text-rose-700 text-xs">
@@ -76,23 +238,38 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
                 {problem.moderation_reason && (
                   <span>: {problem.moderation_reason}</span>
                 )}
-                {typeof problem.quality_score === 'number' && (
+                {typeof problem.quality_score === "number" && (
                   <span> (Score: {problem.quality_score})</span>
                 )}
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className={categoryColors[problem.category] || categoryColors.other}>
+              <Badge
+                variant="secondary"
+                className={
+                  categoryColors[problem.category] || categoryColors.other
+                }
+              >
                 {problem.category}
               </Badge>
               <Badge variant="outline" className={statusColors[problem.status]}>
                 {problem.status.replace("_", " ")}
               </Badge>
               {/* show rating summary if present */}
-              {typeof (problem as any).rating === 'number' && (
+              {typeof (problem as any).rating === "number" && (
                 <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/5">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} className={`h-4 w-4 ${i < ((problem as any).rating ?? 0) ? 'text-amber-400' : 'text-muted-foreground'}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <svg
+                      key={i}
+                      className={`h-4 w-4 ${
+                        i < ((problem as any).rating ?? 0)
+                          ? "text-amber-400"
+                          : "text-muted-foreground"
+                      }`}
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden
+                    >
                       <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.402 8.172L12 18.896l-7.336 3.87 1.402-8.172L.132 9.21l8.2-1.192z" />
                     </svg>
                   ))}
@@ -101,7 +278,9 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Net votes</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Net votes
+            </div>
             <div className="text-3xl font-black text-foreground drop-shadow-sm">
               {problem.votes_count ?? 0}
             </div>
@@ -110,14 +289,19 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
       </CardHeader>
 
       <CardContent className="pb-3 flex-grow">
-        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">{problem.description}</p>
-        
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">
+          {problem.description}
+        </p>
+
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
           <div className="flex items-center gap-1">
             <MapPin className="h-3 w-3" />
             <span>
-              {typeof problem.latitude === 'number' && typeof problem.longitude === 'number' ? (
-                <>{problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}</>
+              {typeof problem.latitude === "number" &&
+              typeof problem.longitude === "number" ? (
+                <>
+                  {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
+                </>
               ) : (
                 <>—</>
               )}
@@ -128,6 +312,14 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
             <span>{formatDate(problem.created_at)}</span>
           </div>
         </div>
+
+        <AISolutionsSection
+          loading={aiLoading}
+          suggestions={suggestions}
+          cached={cached}
+          error={aiError}
+          onRegenerate={regenerate}
+        />
       </CardContent>
 
       <CardFooter className="relative z-10 border-t border-white/10 pt-4">
@@ -138,7 +330,8 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
               size="lg"
               className={cn(
                 "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
-                isUpvoted && "border-emerald-400/60 bg-emerald-500/15 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
+                isUpvoted &&
+                  "border-emerald-400/60 bg-emerald-500/15 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
               )}
               onClick={() => handleVote("upvote")}
               disabled={isVoting}
@@ -151,7 +344,8 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
               size="lg"
               className={cn(
                 "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
-                isDownvoted && "border-rose-400/60 bg-rose-500/15 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.35)]"
+                isDownvoted &&
+                  "border-rose-400/60 bg-rose-500/15 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.35)]"
               )}
               onClick={() => handleVote("downvote")}
               disabled={isVoting}
@@ -169,7 +363,9 @@ const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) 
             >
               <Link to={`/problem/${problem.id}`}>
                 <MessageSquare className="mr-2 h-4 w-4" />
-                {problem.comments_count ? `Comments (${problem.comments_count})` : "Comments"}
+                {problem.comments_count
+                  ? `Comments (${problem.comments_count})`
+                  : "Comments"}
               </Link>
             </Button>
             <Button

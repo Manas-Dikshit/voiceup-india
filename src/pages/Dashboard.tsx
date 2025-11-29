@@ -18,6 +18,7 @@ import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
 import { Problem } from "@/lib/types";
+import type { ChatbotMetadata, SuggestionPublishResponse } from "@/lib/ai-suggestions";
 
 interface Profile {
   id: string;
@@ -406,38 +407,70 @@ const Dashboard = () => {
     }
   };
 
-  const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
-    // Optimistically update UI
-    const newUserMessage: Message = {
-      id: `user-${Date.now()}`,
-      text: message,
-      sender: "user",
-    };
-    setChatHistory([...currentHistory, newUserMessage]);
+  const extractProblemId = (text: string): string | undefined => {
+    const uuidMatch = text.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/);
+    return uuidMatch ? uuidMatch[0] : undefined;
+  };
 
-    const { data, error } = await supabase.functions.invoke("chatbot", {
-      body: { message },
+  const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
+    try {
+      const problemId = extractProblemId(message);
+      const { data, error } = await supabase.functions.invoke<{
+        reply?: string;
+        metadata?: ChatbotMetadata | null;
+      }>("chatbot", {
+        body: {
+          message,
+          problemId,
+          requesterId: profile?.id ?? null,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        text: data?.reply || "Sorry, I couldn't process that. Please try again.",
+        metadata: data?.metadata ?? null,
+      };
+    } catch (error) {
+      console.error("Error invoking chatbot function:", error);
+      return {
+        text: "Failed to get a response from the AI assistant.",
+        metadata: null,
+      };
+    }
+  };
+
+  const handlePublishSuggestion = async (problemId: string, suggestionIndex: number) => {
+    if (!profile?.id) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to publish AI suggestions.",
+        variant: "destructive",
+      });
+      throw new Error("User not authenticated");
+    }
+
+    const { data, error } = await supabase.functions.invoke<SuggestionPublishResponse>("suggestions-publish", {
+      body: {
+        problemId,
+        suggestionIndex,
+        publishedBy: profile.id,
+      },
     });
 
-    if (error) {
-      console.error("Error invoking chatbot function:", error);
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        text: "Failed to get a response from the AI assistant.",
-        sender: "bot",
-      };
-      setChatHistory((prev: Message[]) => [...prev, errorMessage]);
-      throw new Error("Failed to get a response from the AI assistant.");
+    if (error || !data?.success) {
+      const message = error?.message || data?.error || "Unable to publish AI suggestion.";
+      toast({ title: "Publish failed", description: message, variant: "destructive" });
+      throw new Error(message);
     }
-    
-    const botMessage: Message = {
-      id: `bot-${Date.now()}`,
-      text: data.reply || "Sorry, I couldn't process that. Please try again.",
-      sender: "bot",
-    };
 
-    setChatHistory((prev: Message[]) => [...prev, botMessage]);
-    return botMessage.text;
+    toast({
+      title: "Suggestion published",
+      description: "The AI recommendation has been added to the issue suggestions queue.",
+    });
   };
 
   if (loading || problemsLoading) {
@@ -868,6 +901,7 @@ const Dashboard = () => {
               onSendMessage={handleBotSendMessage} 
               history={chatHistory}
               setHistory={setChatHistory}
+              onPublishSuggestion={handlePublishSuggestion}
             />
           </div>
         </DrawerContent>
