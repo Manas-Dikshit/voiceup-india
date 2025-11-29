@@ -9,6 +9,93 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      alerts: {
+        Row: {
+          id: string;
+          incident_id: string;
+          alert_type: string;
+          message: string;
+          broadcast_status: string;
+          recipients_count: number;
+          sent_at?: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          incident_id: string;
+          alert_type: string;
+          message: string;
+          broadcast_status: string;
+          recipients_count: number;
+          sent_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          incident_id?: string;
+          alert_type?: string;
+          message?: string;
+          broadcast_status?: string;
+          recipients_count?: number;
+          sent_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      emergency_incidents: {
+        Row: {
+          id: string;
+          type: string;
+          status: string;
+          location: string;
+          description: string;
+          reported_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: string;
+          status: string;
+          location: string;
+          description: string;
+          reported_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: string;
+          status?: string;
+          location?: string;
+          description?: string;
+          reported_at?: string;
+        };
+        Relationships: [];
+      };
+      resource_deployments: {
+        Row: {
+          id: string;
+          incident_id: string;
+          resource_type: string;
+          quantity: number;
+          status: string;
+          deployed_at: string;
+        };
+        Insert: {
+          id?: string;
+          incident_id: string;
+          resource_type: string;
+          quantity: number;
+          status: string;
+          deployed_at?: string;
+        };
+        Update: {
+          id?: string;
+          incident_id?: string;
+          resource_type?: string;
+          quantity?: number;
+          status?: string;
+          deployed_at?: string;
+        };
+        Relationships: [];
+      };
       audit_logs: {
         Row: {
           action: string

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Bell, Send, AlertTriangle, Users, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Alert {
   id: string;
@@ -76,6 +78,62 @@ export default function AlertBroadcaster({
   const [radiusKm, setRadiusKm] = useState<number>(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Local state for realtime alerts
+  const [alerts, setAlerts] = useState<Alert[]>(recentAlerts);
+
+  useEffect(() => {
+    setAlerts(recentAlerts);
+  }, [recentAlerts]);
+
+  useEffect(() => {
+    // Subscribe to realtime changes in alerts table
+    const channel = supabase
+      .channel("alerts-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "alerts" },
+        (payload) => {
+          const newAlert = payload.new as Alert;
+          setAlerts((prev) => [newAlert, ...prev]);
+
+          // Sound feedback
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(880, ctx.currentTime); // 880 Hz
+            oscillator.connect(ctx.destination);
+            oscillator.start();
+            setTimeout(() => {
+              oscillator.stop();
+              ctx.close();
+            }, 350);
+          } catch (e) {
+            // Ignore sound errors
+          }
+
+          // Vibration feedback
+          if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+          }
+
+          // Browser notification
+          if (window.Notification && Notification.permission === "granted") {
+            new Notification("Emergency Alert", {
+              body: newAlert.message,
+              icon: "/favicon.ico"
+            });
+          } else if (window.Notification && Notification.permission !== "denied") {
+            Notification.requestPermission();
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const defaultMessage = alertTemplates["flood"]?.[alertType] || "";
   const messageToSend = customMessage || defaultMessage;
 
@@ -83,7 +141,26 @@ export default function AlertBroadcaster({
     if (!incidentId) return;
     setIsSubmitting(true);
     try {
+      // Call parent broadcast logic (if any)
       await onBroadcast(alertType, messageToSend, radiusKm);
+
+      // Write new alert to Supabase alerts table
+      const { error } = await supabase.from("alerts").insert([
+        {
+          incident_id: incidentId,
+          alert_type: alertType,
+          message: messageToSend,
+          broadcast_status: "sent", // or "pending" if async delivery
+          recipients_count: 0, // update with actual count if available
+        },
+      ]);
+      if (error) {
+        // Optionally show error toast/notification
+        console.error("Failed to save alert:", error.message);
+      }
+
+      // Optionally trigger notification logic here (e.g., push, SMS, etc.)
+
       setCustomMessage("");
     } finally {
       setIsSubmitting(false);
@@ -183,10 +260,10 @@ export default function AlertBroadcaster({
         </CardContent>
       </Card>
 
-      {/* Recent Alerts History */}
+      {/* Recent Alerts History (Realtime) */}
       <div>
         <h3 className="font-semibold text-lg mb-3">Recent Broadcasts</h3>
-        {recentAlerts.length === 0 ? (
+        {alerts.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -195,7 +272,7 @@ export default function AlertBroadcaster({
           </Card>
         ) : (
           <div className="space-y-3">
-            {recentAlerts.map((alert, idx) => (
+            {alerts.map((alert, idx) => (
               <motion.div
                 key={alert.id}
                 initial={{ opacity: 0, x: -10 }}
@@ -228,8 +305,15 @@ export default function AlertBroadcaster({
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{alert.message}</p>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span> {alert.recipients_count.toLocaleString()} recipients</span>
-                          <span> {new Date(alert.created_at).toLocaleTimeString()}</span>
+                          <span>
+                            <strong>Status:</strong> {alert.broadcast_status.charAt(0).toUpperCase() + alert.broadcast_status.slice(1)}
+                          </span>
+                          <span>
+                            <strong>Recipients:</strong> {alert.recipients_count.toLocaleString()}
+                          </span>
+                          <span>
+                            <strong>Time:</strong> {new Date(alert.created_at).toLocaleTimeString()}
+                          </span>
                         </div>
                       </div>
                     </div>
