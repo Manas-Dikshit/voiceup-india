@@ -1,4 +1,4 @@
-import { Database } from "./supabase/types";
+import { Database } from "@/integrations/supabase/types";
 
 export type Comment = Database["public"]["Tables"]["comments"]["Row"] & {
   profiles: Pick<Database["public"]["Tables"]["profiles"]["Row"], "full_name" | "role">;
@@ -34,6 +34,11 @@ export interface Problem {
   rating?: number | null;
   feedback?: string | null;
   user_id?: string | null;
+  // Moderation fields
+  is_flagged?: boolean;
+  quality_score?: number;
+  moderation_reason?: string;
+  moderated_at?: string;
 }
 
 export type Rating = {
