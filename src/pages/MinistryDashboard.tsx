@@ -1,7 +1,7 @@
 
 // ...existing imports...
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import {
   Card,
@@ -18,14 +18,14 @@ import {
   Layers,
   BarChart3,
   Lightbulb,
-  Globe,
 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
+import { Globe } from 'lucide-react';
 import Header from "@/components/Header";
 import MinistryMap, {
   MinistryMapFilters,
@@ -39,37 +39,6 @@ import ResourceDispatcher from "@/components/emergency/ResourceDispatcher";
 import IncidentPrioritizer from "@/components/emergency/IncidentPrioritizer";
 import CrisisMap from "@/components/emergency/CrisisMap";
 import PredictedZonesViewer from "@/components/emergency/PredictedZonesViewer";
-// Place inside the main MinistryDashboard component:
-
-
-
-    // Mock predicted zones for demo (replace with API data in production)
-    const mockZones = [
-      {
-        id: "zone1",
-        latitude: 20.30,
-        longitude: 85.82,
-        radius_km: 3,
-        risk_level: 8,
-        forecast_confidence: 0.85,
-        affected_area_description: "Central Bhubaneswar",
-        affected_population_estimate: 12000,
-        predicted_severity: "critical",
-        forecast_updated_at: new Date().toISOString(),
-      },
-      {
-        id: "zone2",
-        latitude: 20.32,
-        longitude: 85.80,
-        radius_km: 2,
-        risk_level: 6,
-        forecast_confidence: 0.65,
-        affected_area_description: "Ward 7, North Bhubaneswar",
-        affected_population_estimate: 8000,
-        predicted_severity: "high",
-        forecast_updated_at: new Date().toISOString(),
-      },
-    ];
 import { problem_category } from "@/integrations/supabase/types";
 import { DateRange } from "react-day-picker";
 import { useDebounce } from "use-debounce";
@@ -133,118 +102,108 @@ const mockImpactData: ImpactRow[] = [
 ];
 
 const MinistryDashboard = () => {
-<<<<<<< Updated upstream
-  // Emergency system state (must be at the top for all usages)
-  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
-  const [recentAlerts, setRecentAlerts] = useState([]);
-  const [alertsLoading, setAlertsLoading] = useState(true);
-
-
-    // Resource deployments state
-    const [deployments, setDeployments] = useState([]);
-    const [deploymentsLoading, setDeploymentsLoading] = useState(false);
-
-    // Fetch deployments for selected incident
-    useEffect(() => {
-      if (!selectedIncidentId) {
-        setDeployments([]);
-        return;
-      }
-      setDeploymentsLoading(true);
-      const fetchDeployments = async () => {
-        const { data, error } = await supabase
-          .from("resource_deployments")
-          .select("*")
-          .eq("incident_id", selectedIncidentId)
-          .order("assigned_at", { ascending: false });
-        setDeployments(data ?? []);
-        setDeploymentsLoading(false);
-      };
-      fetchDeployments();
-    }, [selectedIncidentId]);
-                {/* Emergency Resource Dispatcher Section */}
-                <Card className="bg-card/70 border border-border/30 backdrop-blur-md mt-8">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      Resource Dispatcher
-                      {deploymentsLoading && (
-                        <span className="text-xs text-muted-foreground ml-auto">Loading...</span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResourceDispatcher
-                      deployments={deployments}
-                      isLoading={deploymentsLoading}
-                    />
-                  </CardContent>
-                </Card>
-      // Emergency incidents state
-      const [incidents, setIncidents] = useState([]);
-      const [incidentsLoading, setIncidentsLoading] = useState(true);
-
-      // Fetch incidents from Supabase
-      useEffect(() => {
-        const fetchIncidents = async () => {
-          setIncidentsLoading(true);
-          const { data, error } = await supabase
-            .from("emergency_incidents")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(10);
-          setIncidents(data ?? []);
-          setIncidentsLoading(false);
-        };
-        fetchIncidents();
-      }, []);
-
-
-    // Fetch recent alerts from Supabase
-    useEffect(() => {
-      const fetchAlerts = async () => {
-        setAlertsLoading(true);
-        const { data, error } = await supabase
-          .from("alerts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(10);
-        if (!error) setRecentAlerts(data ?? []);
-        setAlertsLoading(false);
-      };
-      fetchAlerts();
-    }, []);
-
-    // Broadcast handler for AlertBroadcaster
-    const handleBroadcast = async (alertType: string, message: string, radiusKm: number) => {
-      // You can add incident selection logic here
-      const incidentId = selectedIncidentId ?? "ministry-incident";
-      await supabase.from("alerts").insert([
-        {
-          incident_id: incidentId,
-          alert_type: alertType,
-          message,
-          broadcast_status: "sent",
-          recipients_count: 0,
-        },
-      ]);
-      // Optionally, refetch alerts
-      const { data } = await supabase
-        .from("alerts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
-      setRecentAlerts(data ?? []);
-    };
-  const { t } = useTranslation();
-=======
   const { t, i18n } = useTranslation();
->>>>>>> Stashed changes
   const [filters, setFilters] = useState<MinistryMapFilters>({});
   const [mapData, setMapData] = useState<Correlation[]>([]);
   const [date, setDate] = useState<DateRange | undefined>();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
   const [debouncedCity] = useDebounce(cityInput, 500);
+
+  // Emergency system state
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [deployments, setDeployments] = useState<any[]>([]);
+  const [deploymentsLoading, setDeploymentsLoading] = useState(false);
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
+
+  // Mock predicted zones for demo
+  const mockZones = [
+    {
+      id: "zone1",
+      latitude: 20.30,
+      longitude: 85.82,
+      radius_km: 3,
+      risk_level: 8,
+      forecast_confidence: 0.85,
+      affected_area_description: "Central Bhubaneswar",
+      affected_population_estimate: 12000,
+      predicted_severity: "critical",
+      forecast_updated_at: new Date().toISOString(),
+    },
+    {
+      id: "zone2",
+      latitude: 20.32,
+      longitude: 85.80,
+      radius_km: 2,
+      risk_level: 6,
+      forecast_confidence: 0.65,
+      affected_area_description: "Ward 7, North Bhubaneswar",
+      affected_population_estimate: 8000,
+      predicted_severity: "high",
+      forecast_updated_at: new Date().toISOString(),
+    },
+  ];
+
+  // Fetch deployments for selected incident
+  useEffect(() => {
+    if (!selectedIncidentId) {
+      setDeployments([]);
+      return;
+    }
+    setDeploymentsLoading(true);
+    const fetchDeployments = async () => {
+      const { data } = await supabase
+        .from("resource_deployments")
+        .select("*")
+        .eq("incident_id", selectedIncidentId)
+        .order("assigned_at", { ascending: false });
+      setDeployments(data ?? []);
+      setDeploymentsLoading(false);
+    };
+    fetchDeployments();
+  }, [selectedIncidentId]);
+
+  // Fetch incidents from Supabase
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      setIncidentsLoading(true);
+      const { data } = await supabase
+        .from("emergency_incidents")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      setIncidents(data ?? []);
+      setIncidentsLoading(false);
+    };
+    fetchIncidents();
+  }, []);
+
+  // Fetch recent alerts from Supabase
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      setAlertsLoading(true);
+      const { data, error } = await supabase
+        .from("alerts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!error) setRecentAlerts(data ?? []);
+      setAlertsLoading(false);
+    };
+    fetchAlerts();
+  }, []);
+
+  // Broadcast handler for AlertBroadcaster
+  const handleBroadcast = async (alertType: string, message: string, radiusKm: number) => {
+    const incidentId = selectedIncidentId ?? "ministry-incident";
+    await supabase.from("alerts").insert([{ incident_id: incidentId, alert_type: alertType, message, broadcast_status: "sent", recipients_count: 0 }]);
+    // Refetch alerts
+    const { data } = await supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(10);
+    setRecentAlerts(data ?? []);
+  };
 
   const {
     data: impactResponse,
@@ -573,21 +532,13 @@ const MinistryDashboard = () => {
                         />
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-<<<<<<< Updated upstream
-                        Avg. Response: {" "}
-=======
                         Avg. Response:{' '}
->>>>>>> Stashed changes
                         {row.avg_response_time
                           ? `${row.avg_response_time.toFixed(1)} hrs`
                           : '—'}
                       </div>
                       <div className="text-xs text-blue-400 font-medium">
-<<<<<<< Updated upstream
-                        Engagement: {" "}
-=======
                         Engagement:{' '}
->>>>>>> Stashed changes
                         {row.engagement_score
                           ? row.engagement_score.toFixed(2)
                           : '—'}
@@ -611,7 +562,7 @@ const MinistryDashboard = () => {
               <CardContent>
                 <IncidentPrioritizer
                   incidents={incidents}
-                  selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
+                  selectedIncident={incidents.find((i: any) => i.id === selectedIncidentId) || null}
                   onSelectIncident={incident => setSelectedIncidentId(incident.id)}
                   onAssignResources={() => {}}
                 />
@@ -648,8 +599,23 @@ const MinistryDashboard = () => {
                 <CrisisMap
                   incidents={incidents}
                   zones={mockZones}
-                  selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
+                  selectedIncident={incidents.find((i: any) => i.id === selectedIncidentId) || null}
                 />
+              </CardContent>
+            </Card>
+
+            {/* Emergency Resource Dispatcher Section */}
+            <Card className="bg-card/70 border border-border/30 backdrop-blur-md mt-8">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Resource Dispatcher
+                  {deploymentsLoading && (
+                    <span className="text-xs text-muted-foreground ml-auto">Loading...</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResourceDispatcher deployments={deployments} isLoading={deploymentsLoading} />
               </CardContent>
             </Card>
 
