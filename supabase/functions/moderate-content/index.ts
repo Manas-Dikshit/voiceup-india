@@ -138,7 +138,7 @@ serve(async (req) => {
   // --- Decide moderation action ---
   let action = 'keep';
   let is_flagged = false;
-  let is_deleted = false;
+  const is_deleted = false;
   let moderation_reason = '';
 
   if (isGarbage) moderation_reason += 'Gibberish text; ';

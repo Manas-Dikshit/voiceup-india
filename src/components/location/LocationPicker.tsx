@@ -304,7 +304,7 @@ export default function LocationPicker({
     const timeout = setTimeout(async () => {
       try {
         // Fetch from all sources in parallel and combine results
-        let suggestions: AreaSuggestion[] = [];
+        const suggestions: AreaSuggestion[] = [];
         
         // Always fetch local suggestions (fast, offline)
         const localSuggestions = getLocalFuzzySuggestions(query, stateName, selectedDistrictName ?? undefined);
