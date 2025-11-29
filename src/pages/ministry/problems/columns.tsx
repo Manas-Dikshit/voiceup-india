@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 export type Problem = {
   id: string
   title: string
-  status: "reported" | "under_review" | "approved" | "in_progress" | "completed" | "rejected"
+  status: "reported" | "under_review" | "approved" | "in_progress" | "Resolved" | "rejected"
   category: string
   created_at: string
 }
