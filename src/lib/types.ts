@@ -9,6 +9,12 @@ export type Notification = Database["public"]["Tables"]["notifications"]["Row"] 
   profiles: Pick<Database["public"]["Tables"]["profiles"]["Row"], "full_name">;
 };
 
+// PostGIS geometry type
+export interface GeometryPoint {
+  type: 'Point';
+  coordinates: [number, number]; // [longitude, latitude]
+}
+
 // Shape used in Dashboard; matches "problems" table plus optional geo helpers
 export interface Problem {
   id: string;
@@ -22,11 +28,10 @@ export interface Problem {
   latitude: number | null;
   longitude: number | null;
   pincode?: string | null;
-  location?: any; // geo field from RPC
+  location?: GeometryPoint | string; // geo field from RPC - can be PostGIS geometry or WKT string
   comments_count?: number; // Optional comments count
   user_vote?: 'upvote' | 'downvote' | null;
   rating?: number | null;
   feedback?: string | null;
   user_id?: string | null;
-  [key: string]: any;
 }

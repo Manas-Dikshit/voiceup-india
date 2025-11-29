@@ -94,7 +94,7 @@ const CivicGraphExplorer: React.FC = () => {
     // Simulation
     const simulation = d3
       .forceSimulation<GraphNode>()
-      .force("link", d3.forceLink<GraphNode, any>().id((d) => d.id).distance(130))
+      .force("link", d3.forceLink<GraphNode, GraphEdge>().id((d) => d.id).distance(130))
       .force("charge", d3.forceManyBody().strength(-250))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide(40));
@@ -110,8 +110,8 @@ const CivicGraphExplorer: React.FC = () => {
 
       // LINKS
       const link = container
-        .selectAll<SVGLineElement, any>("line")
-        .data(edgesRef.current, (d: any) => `${d.source.id}-${d.target.id}`);
+        .selectAll<SVGLineElement, GraphEdge>("line")
+        .data(edgesRef.current, (d: GraphEdge) => `${(d.source as GraphNode).id}-${(d.target as GraphNode).id}`);
 
       link
         .join(
@@ -120,10 +120,10 @@ const CivicGraphExplorer: React.FC = () => {
               .append("line")
               .attr("stroke", theme === "dark" ? "#444" : "#ccc")
               .attr("stroke-opacity", 0.7)
-              .attr("stroke-width", (d: any) =>
+              .attr("stroke-width", (d: GraphEdge) =>
                 d.strength ? 1.5 + d.strength * 2 : 1.5
               )
-              .attr("stroke-dasharray", (d: any) =>
+              .attr("stroke-dasharray", (d: GraphEdge) =>
                 d.type === "similar" ? "5,5" : "none"
               ),
           (update) => update.transition().duration(300),
@@ -133,7 +133,7 @@ const CivicGraphExplorer: React.FC = () => {
       // NODES
       const node = container
         .selectAll<SVGCircleElement, GraphNode>("circle")
-        .data(Array.from(nodesMapRef.current.values()), (d: any) => d.id);
+        .data(Array.from(nodesMapRef.current.values()), (d: GraphNode) => d.id);
 
       node
         .join(
@@ -173,15 +173,15 @@ const CivicGraphExplorer: React.FC = () => {
                   .style("top", event.pageY - 28 + "px");
 
                 link
-                  .style("stroke", (l: any) =>
-                    l.source.id === d.id || l.target.id === d.id
+                  .style("stroke", (l: GraphEdge) =>
+                    (l.source as GraphNode).id === d.id || (l.target as GraphNode).id === d.id
                       ? COLORS[d.type]
                       : theme === "dark"
                       ? "#444"
                       : "#ccc"
                   )
-                  .style("stroke-width", (l: any) =>
-                    l.source.id === d.id || l.target.id === d.id ? 3 : 1.5
+                  .style("stroke-width", (l: GraphEdge) =>
+                    (l.source as GraphNode).id === d.id || (l.target as GraphNode).id === d.id ? 3 : 1.5
                   );
               })
               .on("mousemove", (event) => {
@@ -224,7 +224,7 @@ const CivicGraphExplorer: React.FC = () => {
       // LABELS
       const label = container
         .selectAll<SVGTextElement, GraphNode>("text")
-        .data(Array.from(nodesMapRef.current.values()), (d: any) => d.id);
+        .data(Array.from(nodesMapRef.current.values()), (d: GraphNode) => d.id);
 
       label
         .join(
@@ -245,26 +245,26 @@ const CivicGraphExplorer: React.FC = () => {
         );
 
       simulation.nodes(Array.from(nodesMapRef.current.values()));
-      (simulation.force("link") as any).links(edgesRef.current);
+      simulation.force<d3.ForceLink<GraphNode, GraphEdge>>("link")?.links(edgesRef.current);
       simulation.alpha(1).restart();
 
       simulation.on("tick", () => {
         container
-          .selectAll("line")
-          .attr("x1", (d: any) => d.source.x!)
-          .attr("y1", (d: any) => d.source.y!)
-          .attr("x2", (d: any) => d.target.x!)
-          .attr("y2", (d: any) => d.target.y!);
+          .selectAll<SVGLineElement, GraphEdge>("line")
+          .attr("x1", (d: GraphEdge) => (d.source as GraphNode).x!)
+          .attr("y1", (d: GraphEdge) => (d.source as GraphNode).y!)
+          .attr("x2", (d: GraphEdge) => (d.target as GraphNode).x!)
+          .attr("y2", (d: GraphEdge) => (d.target as GraphNode).y!);
 
         container
-          .selectAll("circle")
-          .attr("cx", (d: any) => d.x!)
-          .attr("cy", (d: any) => d.y!);
+          .selectAll<SVGCircleElement, GraphNode>("circle")
+          .attr("cx", (d: GraphNode) => d.x!)
+          .attr("cy", (d: GraphNode) => d.y!);
 
         container
-          .selectAll("text")
-          .attr("x", (d: any) => d.x!)
-          .attr("y", (d: any) => d.y!);
+          .selectAll<SVGTextElement, GraphNode>("text")
+          .attr("x", (d: GraphNode) => d.x!)
+          .attr("y", (d: GraphNode) => d.y!);
       });
     };
 
