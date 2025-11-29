@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon, LayoutDashboard, ListChecks, BarChart2, FileDown, Map, ShieldCheck, ArrowLeft } from "lucide-react";
+import { LogOut, User as UserIcon, LayoutDashboard, ListChecks, BarChart2, FileDown, Map, ShieldCheck, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
 
@@ -36,6 +36,10 @@ const MinistryHeader = ({ user }: MinistryHeaderProps) => {
               <Link to="/ministry/dashboard" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary">
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
+              </Link>
+              <Link to="/ministry/emergency" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                Emergency
               </Link>
               <Link to="/ministry/problems" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary">
                 <ListChecks className="h-4 w-4" />
