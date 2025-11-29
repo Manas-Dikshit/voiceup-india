@@ -1,7 +1,7 @@
 
 // ...existing imports...
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 import { motion } from 'framer-motion';
 import {
   Card,
@@ -18,7 +18,14 @@ import {
   Layers,
   BarChart3,
   Lightbulb,
+  Globe,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Header from "@/components/Header";
 import MinistryMap, {
   MinistryMapFilters,
@@ -80,8 +87,6 @@ import {
   Legend,
 } from "recharts";
 
-// ---------------- CONSTANTS ----------------
-
 type ImpactRow = {
   id: string;
   category: string;
@@ -127,9 +132,8 @@ const mockImpactData: ImpactRow[] = [
   },
 ];
 
-// ---------------- MAIN COMPONENT ----------------
-
 const MinistryDashboard = () => {
+<<<<<<< Updated upstream
   // Emergency system state (must be at the top for all usages)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [recentAlerts, setRecentAlerts] = useState([]);
@@ -232,6 +236,9 @@ const MinistryDashboard = () => {
       setRecentAlerts(data ?? []);
     };
   const { t } = useTranslation();
+=======
+  const { t, i18n } = useTranslation();
+>>>>>>> Stashed changes
   const [filters, setFilters] = useState<MinistryMapFilters>({});
   const [mapData, setMapData] = useState<Correlation[]>([]);
   const [date, setDate] = useState<DateRange | undefined>();
@@ -239,7 +246,6 @@ const MinistryDashboard = () => {
   const [cityInput, setCityInput] = useState("");
   const [debouncedCity] = useDebounce(cityInput, 500);
 
-  // --------------- Fetch Impact Data ---------------
   const {
     data: impactResponse,
     refetch: refetchImpact,
@@ -251,14 +257,12 @@ const MinistryDashboard = () => {
     staleTime: 30000,
   });
 
-  // --------------- Ensure Fallback if Empty ---------------
   const impactRows: ImpactRow[] = useMemo(() => {
     const rawData = (impactResponse as any)?.data || impactResponse;
-    if (Array.isArray(rawData) && rawData.length > 0) return rawData;
-    return mockImpactData; // Always fallback to mock
+    if (Array.isArray(rawData) && rawData.length > 0) return rawData as ImpactRow[];
+    return mockImpactData;
   }, [impactResponse]);
 
-  // --------------- Filter Logic ---------------
   const handleFilterChange = useCallback(
     (key: keyof MinistryMapFilters, val: any) => {
       setFilters((prev) => {
@@ -289,10 +293,10 @@ const MinistryDashboard = () => {
     handleFilterChange("city", debouncedCity);
   }, [debouncedCity, handleFilterChange]);
 
-  // --------------- Correlation Stats ---------------
   const { topCorrelation, avgCorrelation } = useMemo(() => {
-    if (!mapData?.length)
-      return { topCorrelation: null, avgCorrelation: 0 };
+    if (!mapData?.length) {
+      return { topCorrelation: null as Correlation | null, avgCorrelation: 0 };
+    }
 
     const sorted = [...mapData].sort(
       (a, b) => b.correlation_score - a.correlation_score
@@ -302,27 +306,30 @@ const MinistryDashboard = () => {
     return { topCorrelation: sorted[0], avgCorrelation: avg };
   }, [mapData]);
 
-  // --------------- Real-time Updates ---------------
   useEffect(() => {
     const tables = ["problems", "solutions", "votes", "comments"];
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const channels = tables.map((t) =>
       supabase
         .channel(`${t}-impact-feed`)
-        .on("postgres_changes", { event: "*", schema: "public", table: t }, () => {
-          clearTimeout(timer);
-          timer = setTimeout(() => refetchImpact(), 200);
-        })
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: t },
+          () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => refetchImpact(), 200);
+          }
+        )
         .subscribe()
     );
+
     return () => {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       channels.forEach((c) => supabase.removeChannel(c));
     };
   }, [refetchImpact]);
 
-  // --------------- Export Handler ---------------
   const handleExport = () => {
     if (!mapData.length) return;
     const keys = Object.keys(mapData[0]);
@@ -339,13 +346,11 @@ const MinistryDashboard = () => {
     link.click();
   };
 
-  // --------------- UI Animation Config ---------------
   const fadeIn = {
     hidden: { opacity: 0, y: 10 },
     visible: { opacity: 1, y: 0 },
   };
 
-  // --------------- Filters Sidebar ---------------
   const FiltersPanel = (
     <aside className="w-full md:w-80 bg-gradient-to-b from-card/80 to-background backdrop-blur-xl border-r border-border/40 p-6 space-y-6">
       <h2 className="text-xl font-semibold flex items-center gap-2 text-primary">
@@ -354,7 +359,9 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">{t('ministry.dateRange')}</CardTitle>
+          <CardTitle className="text-base font-medium">
+            {t('ministry.dateRange')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <DateRangePicker date={date} onDateChange={setDate} />
@@ -363,7 +370,9 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">{t('ministry.categories')}</CardTitle>
+          <CardTitle className="text-base font-medium">
+            {t('ministry.categories')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <MultiSelect
@@ -377,7 +386,9 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">{t('ministry.city')}</CardTitle>
+          <CardTitle className="text-base font-medium">
+            {t('ministry.city')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Input
@@ -390,7 +401,6 @@ const MinistryDashboard = () => {
     </aside>
   );
 
-  // --------------- Render ---------------
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-muted/10 to-background">
       <Header
@@ -407,12 +417,35 @@ const MinistryDashboard = () => {
           </Sheet>
         }
         right={
-          <div className="text-right">
-            <p className="text-sm font-medium text-foreground">
-              {t('ministry.ministryOfficial')}
-            </p>
-            <p className="text-xs text-muted-foreground">{t('ministry.adminAccess')}</p>
-          </div>
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Globe className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage("hi")}>
+                  हिंदी (Hindi)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => i18n.changeLanguage("od")}>
+                  ଓଡ଼ିଆ (Odia)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="text-right">
+              <p className="text-sm font-medium text-foreground">
+                {t('ministry.ministryOfficial')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('ministry.adminAccess')}
+              </p>
+            </div>
+          </>
         }
       />
 
@@ -420,7 +453,7 @@ const MinistryDashboard = () => {
         <div className="hidden md:block">{FiltersPanel}</div>
 
         <main className="flex-1 flex flex-col overflow-y-auto h-full">
-          {/* --- Stats --- */}
+          {/* Stats */}
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-b border-border/20">
             {[
               {
@@ -429,7 +462,9 @@ const MinistryDashboard = () => {
                   ? `${topCorrelation.category_a} & ${topCorrelation.category_b}`
                   : t('ministry.na'),
                 subtitle: topCorrelation
-                  ? t('ministry.inCity', { city: topCorrelation.city || t('ministry.na') })
+                  ? t('ministry.inCity', {
+                      city: topCorrelation.city || t('ministry.na'),
+                    })
                   : '',
                 icon: <Layers className="h-5 w-5 text-primary" />,
               },
@@ -472,9 +507,8 @@ const MinistryDashboard = () => {
             ))}
           </div>
 
-          {/* --- Impact Audit + Civic Impact Together --- */}
+          {/* Impact Audit + Civic Impact */}
           <div className="p-6 space-y-8">
-            {/* Impact Audit */}
             <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
               <CardHeader>
                 <CardTitle>Impact Audit: Resolved vs Pending</CardTitle>
@@ -493,7 +527,6 @@ const MinistryDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Civic Impact Tracker (Under Audit) */}
             <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -537,19 +570,27 @@ const MinistryDashboard = () => {
                                 : 0
                             }%`,
                           }}
-                        ></div>
+                        />
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
+<<<<<<< Updated upstream
                         Avg. Response: {" "}
+=======
+                        Avg. Response:{' '}
+>>>>>>> Stashed changes
                         {row.avg_response_time
                           ? `${row.avg_response_time.toFixed(1)} hrs`
-                          : "—"}
+                          : '—'}
                       </div>
                       <div className="text-xs text-blue-400 font-medium">
+<<<<<<< Updated upstream
                         Engagement: {" "}
+=======
+                        Engagement:{' '}
+>>>>>>> Stashed changes
                         {row.engagement_score
                           ? row.engagement_score.toFixed(2)
-                          : "—"}
+                          : '—'}
                       </div>
                     </div>
                   ))}
@@ -616,7 +657,7 @@ const MinistryDashboard = () => {
             <PredictedZonesViewer zones={mockZones} />
           </div>
 
-          {/* --- Map Section --- */}
+          {/* Map Section */}
           <div className="relative flex-grow p-6">
             <div className="absolute top-8 right-8 z-10">
               <Button

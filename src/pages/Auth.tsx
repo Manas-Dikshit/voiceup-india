@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { useTranslation } from 'react-i18next';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import { Users, Vote, TrendingUp } from "lucide-react";
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
 
@@ -49,12 +51,12 @@ const Auth = () => {
       if (error) throw error;
 
       toast({
-        title: "Success!",
-        description: "Please check your email to confirm your account.",
+        title: t('auth.signupSuccessTitle'),
+        description: t('auth.signupSuccessDesc'),
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: t('auth.errorTitle'),
         description: error.message,
         variant: "destructive",
       });
@@ -80,8 +82,8 @@ const Auth = () => {
       if (error) throw error;
 
       toast({
-        title: "Welcome back!",
-        description: "Redirecting to your dashboard...",
+        title: t('auth.signinWelcomeTitle'),
+        description: t('auth.signinWelcomeDesc'),
       });
     } catch (error: any) {
       toast({
@@ -112,10 +114,8 @@ const Auth = () => {
         <div className="w-full max-w-md">
 
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-sky-100 mb-2">VoiceUp</h1>
-            <p className="text-sky-300">
-              Empowering Citizens Through Digital Participation
-            </p>
+            <h1 className="text-4xl font-bold text-sky-100 mb-2">{t('auth.title')}</h1>
+            <p className="text-sky-300">{t('auth.subtitle')}</p>
           </div>
 
           <Tabs defaultValue="signin" className="w-full">
@@ -128,16 +128,16 @@ const Auth = () => {
             <TabsContent value="signin">
               <Card>
                 <CardHeader>
-                  <CardTitle>Welcome Back</CardTitle>
+                  <CardTitle>{t('auth.signInTitle')}</CardTitle>
                   <CardDescription>
-                    Sign in to continue making a difference
+                    {t('auth.signInDesc')}
                   </CardDescription>
                 </CardHeader>
 
                 <form onSubmit={handleSignIn}>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Email</Label>
+                      <Label>{t('forms.emailLabel')}</Label>
                       <Input
                         name="email"
                         type="email"
@@ -147,7 +147,7 @@ const Auth = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Password</Label>
+                      <Label>{t('forms.passwordLabel')}</Label>
                       <Input
                         name="password"
                         type="password"
@@ -159,7 +159,7 @@ const Auth = () => {
 
                   <CardFooter>
                     <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Signing in..." : "Sign In"}
+                      {loading ? t('auth.signingIn') : t('auth.signIn')}
                     </Button>
                   </CardFooter>
                 </form>
@@ -170,16 +170,16 @@ const Auth = () => {
             <TabsContent value="signup">
               <Card>
                 <CardHeader>
-                  <CardTitle>Create Account</CardTitle>
+                  <CardTitle>{t('auth.signUpTitle')}</CardTitle>
                   <CardDescription>
-                    Join thousands of citizens making a difference
+                    {t('auth.signUpDesc')}
                   </CardDescription>
                 </CardHeader>
 
                 <form onSubmit={handleSignUp}>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Full Name</Label>
+                      <Label>{t('forms.fullNameLabel')}</Label>
                       <Input
                         name="fullName"
                         type="text"
@@ -189,7 +189,7 @@ const Auth = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Email</Label>
+                      <Label>{t('forms.emailLabel')}</Label>
                       <Input
                         name="email"
                         type="email"
@@ -199,7 +199,7 @@ const Auth = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Password</Label>
+                      <Label>{t('forms.passwordLabel')}</Label>
                       <Input
                         name="password"
                         type="password"
@@ -212,23 +212,23 @@ const Auth = () => {
 
                   <CardFooter className="flex flex-col gap-4">
                     <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Creating account..." : "Create Account"}
+                      {loading ? t('auth.creatingAccount') : t('auth.createAccount')}
                     </Button>
 
                     <div className="grid grid-cols-3 gap-4 text-center text-xs text-muted-foreground">
                       <div className="flex flex-col items-center gap-1">
                         <Users className="h-4 w-4" />
-                        <span>Join Community</span>
+                        <span>{t('auth.benefits.joinCommunity')}</span>
                       </div>
 
                       <div className="flex flex-col items-center gap-1">
                         <Vote className="h-4 w-4" />
-                        <span>Vote & Discuss</span>
+                        <span>{t('auth.benefits.voteDiscuss')}</span>
                       </div>
 
                       <div className="flex flex-col items-center gap-1">
                         <TrendingUp className="h-4 w-4" />
-                        <span>Earn Points</span>
+                        <span>{t('auth.benefits.earnPoints')}</span>
                       </div>
                     </div>
                   </CardFooter>
