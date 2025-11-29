@@ -1,16 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY"));
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-);
+// CORS headers for browser requests
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { problemId } = await req.json();
 
@@ -19,7 +20,19 @@ serve(async (req) => {
         JSON.stringify({ error: "problemId is required" }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Authorization header is required" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
@@ -30,7 +43,7 @@ serve(async (req) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: req.headers.get("Authorization")!,
+          Authorization: authHeader,
         },
         body: JSON.stringify({
           problemId: problemId,
@@ -43,11 +56,18 @@ serve(async (req) => {
 
     return new Response(JSON.stringify(data), {
       status: res.status,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-    });
+    const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+    console.error("Error:", errorMessage);
+    
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
