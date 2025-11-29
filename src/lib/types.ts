@@ -35,3 +35,12 @@ export interface Problem {
   feedback?: string | null;
   user_id?: string | null;
 }
+
+export type Rating = {
+  id: string;
+  problem_id: string;
+  user_id: string;
+  rating: number;
+  feedback?: string | null;
+  created_at: string;
+};

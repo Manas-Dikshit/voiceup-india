@@ -2,6 +2,8 @@ import React from "react";
 import { MapPin, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import MobileNav from "./MobileNav";
+import LanguageSwitcher from './LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 interface HeaderProps {
   right?: React.ReactNode;
@@ -20,6 +22,7 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
       window.history.back();
     }
   };
+  const { t } = useTranslation();
   return (
     <>
       <header
@@ -42,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
               <MapPin className="h-6 w-6 text-primary" aria-hidden="true" />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-                  VoiceUp
+                  {t('header.title')}
                 </h1>
                 {subtitle && (
                   <p className="text-sm text-muted-foreground leading-tight">
@@ -62,6 +65,7 @@ const Header: React.FC<HeaderProps> = ({ right, subtitle, nav }) => {
 
           {/* Right Actions (buttons, avatar, etc.) */}
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             {right}
             <MobileNav nav={nav} />
           </div>

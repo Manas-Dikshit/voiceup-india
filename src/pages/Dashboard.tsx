@@ -1,4 +1,9 @@
+<<<<<<< Updated upstream
 import { useEffect, useState, useRef } from "react";
+=======
+import { useEffect, useState } from "react";
+import { useTranslation } from 'react-i18next';
+>>>>>>> Stashed changes
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,9 +115,10 @@ const fetchProblems = async (searchTerm: string, selectedCategory: string | null
 };
 
 const fetchNearbyProblems = async (latitude: number, longitude: number) => {
-  const { data, error } = await (supabase as any).rpc('nearby_problems', {
-    lat: latitude,
-    lng: longitude
+  const { data, error } = await (supabase as any).rpc('get_nearby_problems_for_map', {
+    p_lat: latitude,
+    p_lng: longitude,
+    p_radius_meters: 50000 // 50km radius
   });
   if (error) throw new Error(error.message);
   const rows = (data || []) as any[];
@@ -143,6 +149,7 @@ const fetchNearbyProblems = async (latitude: number, longitude: number) => {
 };
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   // Default map center can be configured via Vite env variables.
   const DEFAULT_MAP_CENTER_LAT = Number(import.meta.env.VITE_DEFAULT_MAP_LAT ?? 20.2960);
@@ -292,6 +299,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!profile?.id) return;
 
     const problemsChannel = supabase
       .channel("problems-feed")
@@ -432,8 +443,8 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast({
-      title: "Signed out",
-      description: "You have been signed out successfully.",
+      title: t('dashboard.signedOutTitle'),
+      description: t('dashboard.signedOutDesc'),
     });
     navigate("/");
   };
@@ -521,7 +532,7 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t('dashboard.loading')}</p>
         </div>
       </div>
     );
@@ -532,13 +543,14 @@ const Dashboard = () => {
   const activeProblemsCount = position
     ? (nearbyProblemsLoading && !locationError ? null : nearbyProblems.length)
     : totalProblemsCount ?? (Array.isArray(problems) ? problems.length : 0);
-  const activeProblemsLabel = position ? "In your area" : "Across VoiceUp";
+  const activeProblemsLabel = position ? t('dashboard.inYourArea') : t('dashboard.acrossVoiceUp');
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header
         right={
           <>
+<<<<<<< Updated upstream
             {/* Desktop / tablet: show full details */}
             <div className="hidden sm:flex items-center gap-4">
               <div className="text-right">
@@ -547,6 +559,13 @@ const Dashboard = () => {
                   <Award className="h-3 w-3" />
                   <span>{pointsDisplay} points</span>
                 </div>
+=======
+            <div className="text-right">
+              <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Award className="h-3 w-3" />
+                <span>{pointsDisplay} {t('dashboard.points')}</span>
+>>>>>>> Stashed changes
               </div>
               <NotificationBell />
               <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -562,6 +581,14 @@ const Dashboard = () => {
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
+<<<<<<< Updated upstream
+=======
+            <NotificationBell />
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              {t('buttons.signOut')}
+            </Button>
+>>>>>>> Stashed changes
           </>
         }
       />
@@ -676,12 +703,12 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
-                Your Impact
+                {t('dashboard.yourImpact')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{pointsDisplay}</div>
-              <p className="text-xs text-muted-foreground mt-1">Points earned by voting, reporting, and commenting.</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.pointsSubtitle')}</p>
             </CardContent>
           </Card>
 
@@ -689,7 +716,7 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Award className="h-4 w-4 text-secondary" />
-                Badges Earned
+                {t('dashboard.badgesEarned')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -699,9 +726,7 @@ const Dashboard = () => {
                   <span key={i} className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border">{badge}</span>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Unlock more achievements by contributing.
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.unlockAchievements')}</p>
             </CardContent>
           </Card>
 
@@ -709,7 +734,7 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-info" />
-                Active Problems
+                {t('dashboard.activeProblems')}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -728,7 +753,7 @@ const Dashboard = () => {
             variant="glass-primary"
           >
             <Plus className="h-5 w-5 mr-2" />
-            Report a Problem
+            {t('dashboard.reportProblem')}
           </Button>
         </div>
 
@@ -764,23 +789,38 @@ const Dashboard = () => {
 
         {/* Problems List */}
         <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
+<<<<<<< Updated upstream
           <TabsList className="flex gap-2 overflow-x-auto no-scrollbar px-1">
             <TabsTrigger value="all" className="whitespace-nowrap flex-shrink-0">All Problems</TabsTrigger>
             <TabsTrigger value="nearby" className="whitespace-nowrap flex-shrink-0">Nearby</TabsTrigger>
             <TabsTrigger value="trending" className="whitespace-nowrap flex-shrink-0">Trending</TabsTrigger>
             <TabsTrigger value="insights" className="whitespace-nowrap flex-shrink-0">🗺️ Local Insights</TabsTrigger>
+=======
+          <TabsList>
+            <TabsTrigger value="all">{t('dashboard.tabs.allProblems')}</TabsTrigger>
+            <TabsTrigger value="nearby">{t('dashboard.tabs.nearby')}</TabsTrigger>
+            <TabsTrigger value="trending">{t('dashboard.tabs.trending')}</TabsTrigger>
+            <TabsTrigger value="insights">{t('dashboard.tabs.insights')}</TabsTrigger>
+>>>>>>> Stashed changes
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
             <div className="space-y-4">
               {(Array.isArray(problems) ? problems : []).length === 0 ? (
                 <Card>
+<<<<<<< Updated upstream
                   <CardContent className="py-8 text-center text-muted-foreground">
                     {searchTerm || selectedCategory
                       ? "No problems found matching your filters."
                       : "No problems reported yet. Be the first to report one!"}
                   </CardContent>
                 </Card>
+=======
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      {t('dashboard.noProblemsYet')}
+                    </CardContent>
+                  </Card>
+>>>>>>> Stashed changes
               ) : (
                 (Array.isArray(problems) ? problems : []).map((raw: any) => {
                   const normalized = normalizeProblem(raw);
@@ -809,28 +849,28 @@ const Dashboard = () => {
             {locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Could not get your location. Please enable location services in your browser.
+                  {t('dashboard.locationError')}
                 </CardContent>
               </Card>
             )}
             {!position && !locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Getting your location...
+                  {t('dashboard.gettingLocation')}
                 </CardContent>
               </Card>
             )}
             {position && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  No problems found nearby.
+                  {t('dashboard.noNearbyProblems')}
                 </CardContent>
               </Card>
             )}
              {nearbyProblemsLoading && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Loading nearby problems...
+                  {t('dashboard.loadingNearby')}
                 </CardContent>
               </Card>
             )}
