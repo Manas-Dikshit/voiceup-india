@@ -806,11 +806,11 @@ async function fetchAreaSuggestions(
       label: entry.display_name,
       lat: Number(entry.lat),
       lng: Number(entry.lon),
-      source: 'nominatim',
+      source: 'nominatim' as const,
       osmId: `${entry.osm_type?.[0] ?? 'N'}${entry.osm_id}`,
       state: entry.address?.state ?? stateName,
       district: entry.address?.county ?? entry.address?.district ?? districtName,
-    }));
+    } as AreaSuggestion));
     
     console.debug(`Nominatim returned ${results.length} results for: "${search}"`);
     return results;
