@@ -21,6 +21,7 @@ import {
 import { useVote } from "@/hooks/useVote";
 import { Problem } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProblemCardProps {
   problem: Problem;
@@ -51,27 +52,62 @@ const useAISolutions = (problemId: string): UseAISolutionsReturn => {
   const [cached, setCached] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchViaSupabase = async (
+    ignoreCache: boolean
+  ): Promise<AISolutionsResponse> => {
+    const { data, error } = await supabase.functions.invoke("generate_solutions", {
+      body: {
+        problemId,
+        ignoreCache,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message ?? "AI suggestions failed");
+    }
+
+    return data as AISolutionsResponse;
+  };
+
+  const fetchViaHttp = async (
+    ignoreCache: boolean
+  ): Promise<AISolutionsResponse> => {
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!baseUrl || !anonKey) {
+      throw new Error("Supabase environment variables missing");
+    }
+
+    const response = await fetch(`${baseUrl}/functions/v1/generate_solutions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({
+        problemId,
+        ignoreCache,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return (await response.json()) as AISolutionsResponse;
+  };
+
   const fetchSolutions = async (ignoreCache: boolean = false): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        "https://wfpxknccdypiwpsoyisx.supabase.co/functions/v1/generate_solutions",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            problemId,
-            ignoreCache,
-          }),
-        }
-      );
+      const data = await fetchViaSupabase(ignoreCache).catch((err) => {
+        console.warn("[AI Solutions] Supabase invoke failed, falling back", err);
+        return fetchViaHttp(ignoreCache);
+      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data: AISolutionsResponse = await response.json();
       setSuggestions(data.suggestions ?? []);
       setCached(data.cached ?? false);
     } catch (err) {
