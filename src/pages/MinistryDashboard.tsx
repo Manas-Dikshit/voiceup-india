@@ -130,6 +130,79 @@ const mockImpactData: ImpactRow[] = [
 // ---------------- MAIN COMPONENT ----------------
 
 const MinistryDashboard = () => {
+    // Live crisis zones state
+    const [zones, setZones] = useState([]);
+    const [zonesLoading, setZonesLoading] = useState(true);
+
+    useEffect(() => {
+      let channel;
+      const fetchZones = async () => {
+        setZonesLoading(true);
+        const { data, error } = await supabase
+          .from("crisis_zones")
+          .select("*")
+          .order("risk_level", { ascending: false })
+          .limit(10);
+        setZones(data ?? []);
+        setZonesLoading(false);
+      };
+      fetchZones();
+
+      // Subscribe to real-time changes
+      channel = supabase
+        .channel("crisis-zones-feed")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "crisis_zones" },
+          () => fetchZones()
+        )
+        .subscribe();
+      return () => {
+        if (channel) supabase.removeChannel(channel);
+      };
+    }, []);
+  // Emergency incidents state
+  const [incidents, setIncidents] = useState([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchIncidents = async () => {
+      setIncidentsLoading(true);
+      const { data, error } = await supabase
+        .from("emergency_incidents")
+        .select("*")
+        .order("reported_at", { ascending: false })
+        .limit(10);
+      setIncidents(data ?? []);
+      setIncidentsLoading(false);
+    };
+    fetchIncidents();
+  }, []);
+
+  {/* Emergency Response Map Section */}
+  <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        Emergency Response Map
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      {zones.length > 0 ? (
+        <CrisisMap
+          incidents={incidents}
+          zones={zones}
+          selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
+        />
+      ) : (
+        <div className="text-center text-muted-foreground py-8">
+          No crisis zones found. Please check your Supabase data.
+        </div>
+      )}
+      {zonesLoading && (
+        <div className="text-xs text-muted-foreground mt-2">Loading zones...</div>
+      )}
+    </CardContent>
+  </Card>
   // Emergency system state (must be at the top for all usages)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [recentAlerts, setRecentAlerts] = useState([]);
@@ -175,24 +248,6 @@ const MinistryDashboard = () => {
                     />
                   </CardContent>
                 </Card>
-      // Emergency incidents state
-      const [incidents, setIncidents] = useState([]);
-      const [incidentsLoading, setIncidentsLoading] = useState(true);
-
-      // Fetch incidents from Supabase
-      useEffect(() => {
-        const fetchIncidents = async () => {
-          setIncidentsLoading(true);
-          const { data, error } = await supabase
-            .from("emergency_incidents")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(10);
-          setIncidents(data ?? []);
-          setIncidentsLoading(false);
-        };
-        fetchIncidents();
-      }, []);
 
 
     // Fetch recent alerts from Supabase
