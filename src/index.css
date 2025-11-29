@@ -190,6 +190,9 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  .custom-scroll {
+    @apply glass-scrollbar;
+  }
   .glass-scrollbar::-webkit-scrollbar {
     width: 12px;
   }

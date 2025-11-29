@@ -74,6 +74,23 @@ Keep local SQL, RPCs, and generated types in lockstep with the hosted Supabase p
 ### Environment Variables
 Create a `.env` file for any secrets (API keys, bucket names, etc). See `.env.example` if present.
 
+#### Google Maps API Key Setup
+1. Get your API key from [Google Cloud Console](https://console.cloud.google.com/google/maps-apis)
+2. Enable the following APIs:
+   - Maps JavaScript API
+   - Places API
+   - Geocoding API
+3. Add to your `.env` file:
+   ```
+   VITE_GOOGLE_API_KEY=your_api_key_here
+   ```
+   Or alternatively:
+   ```
+   VITE_GOOGLE_PLACES_API_KEY=your_api_key_here
+   ```
+
+The app will automatically use Google Places Autocomplete when the API key is available, with fallback to Nominatim (OpenStreetMap) if the key is missing or unavailable.
+
 ## Editing & Deployment
 
 - Edit code in your IDE and push changes to GitHub
