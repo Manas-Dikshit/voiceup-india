@@ -3,24 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Bot, User, Trash2 } from "lucide-react";
+import { Send, Bot, User, Trash2, Sparkles, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { AISolutionSuggestion, ChatbotMetadata } from "@/lib/ai-suggestions";
 
 export interface Message {
   id: string;
   text: string;
   sender: "user" | "bot";
+  metadata?: ChatbotMetadata | null;
 }
 
 interface ChatbotProps {
-  onSendMessage: (message: string, history: Message[]) => Promise<string>;
+  onSendMessage: (message: string, history: Message[]) => Promise<{ text: string; metadata?: ChatbotMetadata | null }>;
   history: Message[];
   setHistory: (history: Message[]) => void;
+  onPublishSuggestion?: (
+    problemId: string,
+    suggestionIndex: number,
+    suggestion: AISolutionSuggestion,
+  ) => Promise<void>;
 }
 
-const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
+const Chatbot = ({ onSendMessage, history, setHistory, onPublishSuggestion }: ChatbotProps) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [publishingKey, setPublishingKey] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // Load saved chat from localStorage
@@ -69,8 +77,9 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
 
       const botMessage: Message = {
         id: crypto.randomUUID(),
-        text: botResponse,
+        text: botResponse.text,
         sender: "bot",
+        metadata: botResponse.metadata ?? null,
       };
 
       setHistory((prev) => [...prev, botMessage]);
@@ -78,6 +87,24 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
       console.error("Error sending:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePublish = async (
+    problemId: string,
+    suggestionIndex: number,
+    suggestion: AISolutionSuggestion,
+    messageId: string,
+  ) => {
+    if (!onPublishSuggestion) return;
+    const key = `${messageId}-${suggestionIndex}`;
+    setPublishingKey(key);
+    try {
+      await onPublishSuggestion(problemId, suggestionIndex, suggestion);
+    } catch (error) {
+      console.error("Failed to publish AI suggestion", error);
+    } finally {
+      setPublishingKey(null);
     }
   };
 
@@ -125,10 +152,58 @@ const Chatbot = ({ onSendMessage, history, setHistory }: ChatbotProps) => {
                   "p-3 rounded-lg max-w-xs lg:max-w-md",
                   msg.sender === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    : "bg-muted text-foreground"
                 )}
               >
                 <p className="text-sm">{msg.text}</p>
+
+                {msg.metadata?.type === "suggestion" && msg.metadata.data?.suggestions?.length ? (
+                  <div className="mt-3 space-y-3">
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                      <Sparkles className="h-3 w-3" />
+                      <span>
+                        {msg.metadata.data.cached ? "Cached" : "Fresh"} · {msg.metadata.data.model}
+                      </span>
+                    </div>
+                    {msg.metadata.data.suggestions.map((suggestion, idx) => (
+                      <div key={`${msg.id}-suggestion-${idx}`} className="rounded-md border border-border/60 bg-background text-foreground p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold leading-tight">{suggestion.title}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              Impact: {suggestion.impact}
+                            </p>
+                          </div>
+                          {onPublishSuggestion && msg.metadata?.data?.problemId && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={publishingKey === `${msg.id}-${idx}`}
+                              onClick={() =>
+                                handlePublish(
+                                  msg.metadata!.data.problemId,
+                                  idx,
+                                  suggestion,
+                                  msg.id,
+                                )
+                              }
+                              className="h-7 text-xs"
+                            >
+                              {publishingKey === `${msg.id}-${idx}` ? "Publishing..." : "Publish"}
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs mt-2 leading-relaxed">{suggestion.description}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">Next: {suggestion.nextStep}</p>
+                        {publishingKey === `${msg.id}-${idx}` && (
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-2">
+                            <Check className="h-3 w-3 animate-pulse" /> Processing...
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               {msg.sender === "user" && (
