@@ -23,6 +23,7 @@ import MinistryDashboardPage from "./pages/MinistryDashboard";
 
 // Lazy load ministry pages
 const MinistryAuditPage = React.lazy(() => import("./pages/ministry/audit"));
+const EmergencyCrisisMode = React.lazy(() => import("./pages/ministry/EmergencyCrisisMode"));
 
 const App = () => (
   <TooltipProvider>
@@ -49,6 +50,7 @@ const App = () => (
           <Route path="/ministry/login" element={<MinistryLogin />} />
           <Route path="/ministry" element={<MinistryLayout />}>
             <Route path="dashboard" element={<MinistryDashboard />} />
+            <Route path="emergency" element={<EmergencyCrisisMode />} />
             <Route path="problems" element={<MinistryProblemsPage />} />
             <Route path="analytics" element={<MinistryAnalyticsPage />} />
             <Route path="reports" element={<MinistryReportsPage />} />
