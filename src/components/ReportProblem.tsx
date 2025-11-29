@@ -172,14 +172,10 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       const filePath = `${session.user.id}/${Date.now()}_${attachment.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(filePath, attachment, {
-          onUploadProgress: (progress) => {
-            if (progress.total)
-              setUploadProgress(Math.round((progress.loaded / progress.total) * 100));
-          },
-        });
+        .upload(filePath, attachment);
 
       if (uploadError) throw uploadError;
+      setUploadProgress(100);
 
       const { data: publicUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
       const mediaUrl = publicUrlData.publicUrl;
@@ -198,18 +194,16 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
         ? `${formData.description}\n\nLocation notes:\n- ${locationNotes.join("\n- ")}`
         : formData.description;
 
-      const { error } = await supabase.from("problems").insert([
-        {
-          user_id: session.user.id,
-          title: formData.title,
-          description: fullDescription,
-          category: formData.category,
-          pincode: formData.pincode,
-          latitude: formData.latitude,
-          longitude: formData.longitude,
-          media_url: mediaUrl,
-        },
-      ]);
+      const { error } = await supabase.from("problems").insert({
+        user_id: session.user.id,
+        title: formData.title,
+        description: fullDescription,
+        category: formData.category as 'roads' | 'water' | 'electricity' | 'sanitation' | 'education' | 'healthcare' | 'pollution' | 'safety' | 'other',
+        pincode: formData.pincode,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+        media_url: mediaUrl,
+      });
 
       if (error) throw error;
 
@@ -587,8 +581,14 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div
-                className="relative flex flex-col items-center justify-center w-full gap-2 rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.02] p-8 text-center transition hover:border-primary/40 hover:bg-primary/5"
-                onClick={() => fileInputRef.current?.click()}
+                className="relative flex flex-col items-center justify-center w-full gap-2 rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.02] p-8 text-center transition hover:border-primary/40 hover:bg-primary/5 cursor-pointer"
+                onClick={() => {
+                  // Reset input value first to allow same file to be selected
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = "";
+                    fileInputRef.current.click();
+                  }
+                }}
                 onDrop={(event) => {
                   event.preventDefault();
                   const file = event.dataTransfer.files?.[0];
@@ -607,7 +607,9 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                   type="file"
                   className="absolute inset-0 cursor-pointer opacity-0"
                   accept="image/*,video/*,.pdf"
-                  onChange={(e) => handleAttachmentChange(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    handleAttachmentChange(e.target.files?.[0] || null);
+                  }}
                 />
               </div>
 
