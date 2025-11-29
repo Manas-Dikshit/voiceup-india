@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   open: boolean;
@@ -13,6 +14,7 @@ type Props = {
 };
 
 const RatingDialog: React.FC<Props> = ({ open, onOpenChange, onSubmit, initialRating = null, initialFeedback = null }) => {
+  const { t } = useTranslation();
   const [rating, setRating] = useState<number | null>(initialRating ?? null);
   const [hover, setHover] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string>(initialFeedback ?? '');
@@ -35,8 +37,8 @@ const RatingDialog: React.FC<Props> = ({ open, onOpenChange, onSubmit, initialRa
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Rate the resolution</DialogTitle>
-          <DialogDescription>Please rate how well the problem was resolved (1–5 stars).</DialogDescription>
+          <DialogTitle>{t('ratingDialog.title')}</DialogTitle>
+          <DialogDescription>{t('ratingDialog.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
@@ -57,15 +59,15 @@ const RatingDialog: React.FC<Props> = ({ open, onOpenChange, onSubmit, initialRa
           </div>
 
           <div className="mt-4">
-            <label className="text-sm font-medium">Optional feedback</label>
-            <Textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} className="mt-2" placeholder="Share details to help the ministry improve..." />
+            <label className="text-sm font-medium">{t('ratingDialog.optionalFeedback')}</label>
+            <Textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} className="mt-2" placeholder={t('ratingDialog.optionalFeedback') || ''} />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="mr-2">Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="mr-2">{t('buttons.cancel')}</Button>
           <Button onClick={handleSubmit} disabled={rating == null || submitting}>
-            {submitting ? 'Submitting...' : 'Submit Review'}
+            {submitting ? t('ratingDialog.submitting') : t('buttons.submitReview')}
           </Button>
         </DialogFooter>
       </DialogContent>

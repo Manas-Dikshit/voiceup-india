@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const defaultCenter: { lat: number; lng: number } = { lat: 20.5937, lng: 78.9629 };
 
@@ -16,6 +17,7 @@ const ManualLocationPicker: React.FC<Props> = ({ initial = null, onConfirm }) =>
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '';
   const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey });
 
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<{ lat: number; lng: number } | null>(initial);
 
   useEffect(() => {
@@ -25,11 +27,11 @@ const ManualLocationPicker: React.FC<Props> = ({ initial = null, onConfirm }) =>
   const center = useMemo(() => (initial ? { lat: initial.lat, lng: initial.lng } : defaultCenter), [initial]);
 
   if (loadError) {
-    return <div className="text-red-600 p-2">Map failed to load: {String(loadError)}</div>;
+    return <div className="text-red-600 p-2">{t('locationPicker.loadError', { error: String(loadError) })}</div>;
   }
 
   if (!isLoaded) {
-    return <div className="p-2">Loading map...</div>;
+    return <div className="p-2">{t('locationPicker.loadingMap')}</div>;
   }
 
   return (
@@ -74,10 +76,10 @@ const ManualLocationPicker: React.FC<Props> = ({ initial = null, onConfirm }) =>
           {selected ? (
             <>
               <span className="font-mono">{selected.lat.toFixed(6)}, {selected.lng.toFixed(6)}</span>
-              <div className="text-xs text-muted-foreground">Drag marker or click on map to pick location</div>
+              <div className="text-xs text-muted-foreground">{t('locationPicker.dragOrClick')}</div>
             </>
           ) : (
-            <span className="text-sm">No location selected yet. Drag the marker or click the map.</span>
+            <span className="text-sm">{t('problem.noLocation')}</span>
           )}
         </div>
 
@@ -88,7 +90,7 @@ const ManualLocationPicker: React.FC<Props> = ({ initial = null, onConfirm }) =>
             disabled={!selected}
             className="rounded-lg bg-white/5 border border-white/10 hover:bg-white/10"
           >
-            <MapPin className="h-4 w-4 mr-2 inline" /> Use This Location
+            <MapPin className="h-4 w-4 mr-2 inline" /> {t('locationPicker.useThisLocation')}
           </Button>
         </div>
       </div>

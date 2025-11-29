@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import RatingDialog from '@/components/review/RatingDialog';
 import useSubmitRating from '@/hooks/useSubmitRating';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { CommentThread } from "@/components/comments/CommentThread";
 import Header from "@/components/Header";
@@ -35,16 +36,31 @@ const ProblemDetail = () => {
   const [ratingOpen, setRatingOpen] = useState(false);
   const submitRating = useSubmitRating();
   const { user } = useAuth();
+  const { toast } = useToast();
+
+  // check if current user has already rated this problem
+  const { data: userRating, isLoading: userRatingLoading } = useQuery(
+    ['ratings', id, user?.id],
+    async () => {
+      if (!id || !user) return null;
+      const { data, error } = await supabase.from('ratings').select('*').eq('problem_id', id).eq('user_id', user.id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    { enabled: !!id && !!user }
+  );
 
   useEffect(() => {
-    if (!isLoading && problem && user) {
-      // Only prompt the original reporter to submit a rating
-      const isReporter = String((problem as any).user_id) === String(user.id);
-      if (isReporter && String(problem.status) === 'Resolved' && (((problem as any).rating === null) || ((problem as any).rating === undefined))) {
+    if (!isLoading && problem && user && !userRatingLoading) {
+      // Public ratings: any authenticated user can rate a resolved problem if they haven't already
+      const status = String(problem.status).toLowerCase();
+      const isResolved = ['resolved', 'completed'].includes(status);
+      if (isResolved && !userRating) {
         setRatingOpen(true);
       }
     }
-  }, [isLoading, problem]);
+    // include all values we read so effect runs when auth or userRating finishes
+  }, [isLoading, problem, user, userRatingLoading, userRating]);
 
   if (isLoading) {
     return (
@@ -115,8 +131,10 @@ const ProblemDetail = () => {
           if (!problem) return;
           try {
             await (submitRating as any).mutateAsync({ problemId: problem.id, rating, feedback });
-          } catch (err) {
+            toast({ title: 'Review submitted', description: 'Thank you for your feedback.' });
+          } catch (err: any) {
             console.error('Failed to submit rating', err);
+            toast({ title: 'Failed to submit review', description: err?.message ?? String(err) });
           }
         }}
         initialRating={(problem as any).rating ?? null}

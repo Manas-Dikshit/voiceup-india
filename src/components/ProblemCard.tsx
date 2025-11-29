@@ -1,4 +1,9 @@
+<<<<<<< Updated upstream
 import React, { useEffect, useState } from "react";
+=======
+import React from "react";
+import { useTranslation } from 'react-i18next';
+>>>>>>> Stashed changes
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -117,6 +122,7 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
+<<<<<<< Updated upstream
 const SkeletonLoader: React.FC = () => (
   <div className="space-y-2">
     {Array.from({ length: 3 }).map((_, i) => (
@@ -128,6 +134,14 @@ const SkeletonLoader: React.FC = () => (
     ))}
   </div>
 );
+=======
+const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) => {
+  const { t } = useTranslation();
+  const { mutate: vote, isPending: isVoting } = useVote();
+  const currentVote = problem.user_vote ?? null;
+  const isUpvoted = currentVote === 'upvote';
+  const isDownvoted = currentVote === 'downvote';
+>>>>>>> Stashed changes
 
 interface AISolutionsSectionProps {
   loading: boolean;
@@ -234,7 +248,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             {/* Moderation feedback for flagged problems */}
             {problem.is_flagged && (
               <div className="mb-2 p-2 rounded bg-rose-100 border border-rose-300 text-rose-700 text-xs">
-                <strong>Flagged for review</strong>
+                <strong>{t('problemCard.flaggedForReview')}</strong>
                 {problem.moderation_reason && (
                   <span>: {problem.moderation_reason}</span>
                 )}
@@ -278,9 +292,13 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             </div>
           </div>
           <div className="text-right">
+<<<<<<< Updated upstream
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               Net votes
             </div>
+=======
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('problemCard.netVotes')}</div>
+>>>>>>> Stashed changes
             <div className="text-3xl font-black text-foreground drop-shadow-sm">
               {problem.votes_count ?? 0}
             </div>
@@ -337,7 +355,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
               disabled={isVoting}
             >
               <ThumbsUp className="mr-2 h-4 w-4" />
-              {isUpvoted ? "Upvoted" : "Upvote"}
+              {isUpvoted ? t('problemCard.upvoted') : t('problemCard.upvote')}
             </Button>
             <Button
               variant="ghost"
@@ -351,7 +369,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
               disabled={isVoting}
             >
               <ThumbsDown className="mr-2 h-4 w-4" />
-              {isDownvoted ? "Downvoted" : "Downvote"}
+              {isDownvoted ? t('problemCard.downvoted') : t('problemCard.downvote')}
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -363,9 +381,13 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             >
               <Link to={`/problem/${problem.id}`}>
                 <MessageSquare className="mr-2 h-4 w-4" />
+<<<<<<< Updated upstream
                 {problem.comments_count
                   ? `Comments (${problem.comments_count})`
                   : "Comments"}
+=======
+                {problem.comments_count ? t('problemCard.commentsWithCount', { count: problem.comments_count }) : t('problemCard.comments')}
+>>>>>>> Stashed changes
               </Link>
             </Button>
             <Button
@@ -375,7 +397,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
               onClick={() => onShowOnMap?.(problem)}
             >
               <MapPin className="mr-2 h-4 w-4" />
-              Map
+              {t('problemCard.map')}
             </Button>
           </div>
         </div>

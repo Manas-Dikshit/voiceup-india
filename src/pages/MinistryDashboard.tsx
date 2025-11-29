@@ -1,5 +1,11 @@
+<<<<<<< Updated upstream
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
+=======
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+>>>>>>> Stashed changes
 import {
   Card,
   CardContent,
@@ -91,6 +97,7 @@ const mockImpactData: ImpactRow[] = [
 // ---------------- MAIN COMPONENT ----------------
 
 const MinistryDashboard = () => {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<MinistryMapFilters>({});
   const [mapData, setMapData] = useState<Correlation[]>([]);
   const [date, setDate] = useState<DateRange | undefined>();
@@ -232,12 +239,16 @@ const MinistryDashboard = () => {
   const FiltersPanel = (
     <aside className="w-full md:w-80 bg-gradient-to-b from-card/80 to-background backdrop-blur-xl border-r border-border/40 p-6 space-y-6">
       <h2 className="text-xl font-semibold flex items-center gap-2 text-primary">
-        <Filter className="h-5 w-5" /> Filters
+        <Filter className="h-5 w-5" /> {t('ministry.filters')}
       </h2>
 
       <Card>
         <CardHeader>
+<<<<<<< Updated upstream
           <CardTitle>Date Range</CardTitle>
+=======
+          <CardTitle className="text-base font-medium">{t('ministry.dateRange')}</CardTitle>
+>>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <DateRangePicker date={date} onDateChange={setDate} />
@@ -246,25 +257,33 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
+<<<<<<< Updated upstream
           <CardTitle>Categories</CardTitle>
+=======
+          <CardTitle className="text-base font-medium">{t('ministry.categories')}</CardTitle>
+>>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <MultiSelect
             options={categoryOptions}
             selected={selectedCategories}
             onChange={setSelectedCategories}
-            placeholder="Select categories..."
+            placeholder={t('ministry.selectCategoriesPlaceholder')}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
+<<<<<<< Updated upstream
           <CardTitle>City</CardTitle>
+=======
+          <CardTitle className="text-base font-medium">{t('ministry.city')}</CardTitle>
+>>>>>>> Stashed changes
         </CardHeader>
         <CardContent>
           <Input
-            placeholder="Filter by city..."
+            placeholder={t('ministry.filterByCity')}
             value={cityInput}
             onChange={(e) => setCityInput(e.target.value)}
           />
@@ -291,8 +310,15 @@ const MinistryDashboard = () => {
         }
         right={
           <div className="text-right">
+<<<<<<< Updated upstream
             <p className="text-sm font-medium">Ministry Official</p>
             <p className="text-xs text-muted-foreground">Admin Access</p>
+=======
+            <p className="text-sm font-medium text-foreground">
+              {t('ministry.ministryOfficial')}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('ministry.adminAccess')}</p>
+>>>>>>> Stashed changes
           </div>
         }
       />
@@ -305,6 +331,7 @@ const MinistryDashboard = () => {
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-b border-border/20">
             {[
               {
+<<<<<<< Updated upstream
                 title: "Top Correlation Pair",
                 value: topCorrelation
                   ? `${topCorrelation.category_a ?? "N/A"} & ${
@@ -330,6 +357,32 @@ const MinistryDashboard = () => {
                 icon: <MapPin className="h-5 w-5 text-primary" />,
               },
             ].map((stat, i) => (
+=======
+                  title: t('ministry.topCorrelationPair'),
+                  value: topCorrelation
+                    ? `${topCorrelation.category_a} & ${topCorrelation.category_b}`
+                    : t('ministry.na'),
+                  subtitle: topCorrelation
+                    ? t('ministry.inCity', { city: topCorrelation.city || t('ministry.na') })
+                    : '',
+                  icon: <Layers className="h-5 w-5 text-primary" />,
+                },
+                {
+                  title: t('ministry.highestScore'),
+                  value: topCorrelation
+                    ? topCorrelation.correlation_score.toFixed(2)
+                    : t('ministry.na'),
+                  subtitle: t('ministry.peakDataCorrelation'),
+                  icon: <BarChart3 className="h-5 w-5 text-primary" />,
+                },
+                {
+                  title: t('ministry.averageCorrelation'),
+                  value: avgCorrelation.toFixed(2),
+                  subtitle: t('ministry.acrossAllCategories'),
+                  icon: <MapPin className="h-5 w-5 text-primary" />,
+                },
+            ].map((stat, idx) => (
+>>>>>>> Stashed changes
               <motion.div
                 key={i}
                 variants={fadeIn}
@@ -448,7 +501,7 @@ const MinistryDashboard = () => {
                 disabled={!mapData.length}
                 className="shadow-lg bg-gradient-to-r from-primary to-primary/80 text-white hover:from-primary/90 hover:to-primary/90 transition-all rounded-full px-6 py-3"
               >
-                <Download className="h-4 w-4 mr-2" /> Export Data
+                <Download className="h-4 w-4 mr-2" /> {t('ministry.exportData')}
               </Button>
             </div>
             <div className="rounded-2xl overflow-hidden border border-border/30 bg-card/50 backdrop-blur-lg shadow-md h-full min-h-[400px]">

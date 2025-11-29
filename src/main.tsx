@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.tsx";
 import "./index.css";
+// Initialize i18n
+import './i18n';
 import { AuthProvider } from "./hooks/use-auth.tsx";
 
 // Force dark theme by default (adds Tailwind 'dark' class to root element)

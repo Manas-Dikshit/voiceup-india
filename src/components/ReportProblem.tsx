@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ type FormData = {
 const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const BUCKET_NAME = import.meta.env.VITE_PROBLEM_BUCKET ?? "problem-attachments";
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -155,31 +157,30 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const getLocation = () => {
     setLocationLoading(true);
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
+          navigator.geolocation.getCurrentPosition(
         async (position) => {
           await applyLocation(position.coords.latitude, position.coords.longitude);
           setLocationLoading(false);
           toast({
-            title: "Location detected ✅",
-            description: "Your current location has been added.",
+            title: t('reportProblem.locationDetectedTitle'),
+            description: t('reportProblem.locationDetectedDesc'),
           });
         },
         () => {
           setLocationLoading(false);
           toast({
-            title: "Location unavailable",
-            description:
-              "Could not get your location. Please ensure location permissions are granted or enter coordinates manually.",
+            title: t('reportProblem.locationUnavailableTitle'),
+            description: t('reportProblem.locationUnavailableDesc'),
             variant: "destructive",
             duration: 7000,
           });
         }
       );
-    } else {
+      } else {
       setLocationLoading(false);
       toast({
-        title: "Location not supported",
-        description: "Your browser doesn't support location access.",
+        title: t('reportProblem.locationNotSupportedTitle'),
+        description: t('reportProblem.locationNotSupportedDesc'),
         variant: "destructive",
         duration: 7000,
       });
@@ -201,8 +202,8 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       if (!profile) throw new Error("User profile missing. Try logging out and back in.");
 
       if (!attachment) {
-        setFileError("Please attach a photo, video, or document.");
-        throw new Error("Attachment missing");
+        setFileError(t('reportProblem.attachmentMissing'));
+        throw new Error(t('reportProblem.attachmentMissing'));
       }
 
       // Upload
@@ -245,8 +246,8 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       if (error) throw error;
 
       toast({
-        title: "Problem reported 🎉",
-        description: "Your report has been submitted successfully.",
+        title: t('reportProblem.problemReportedTitle'),
+        description: t('reportProblem.problemReportedDesc'),
       });
       setAttachment(null);
       setFilePreview(null);
@@ -396,27 +397,23 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
       <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-background to-background/80 backdrop-blur-xl shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-semibold text-foreground flex items-center gap-3">
-            <Sparkles className="h-6 w-6 text-primary" /> Report an issue
+            <Sparkles className="h-6 w-6 text-primary" /> {t('reportProblem.dialogTitle')}
           </DialogTitle>
-          <DialogDescription className="text-base">
-            Your report notifies the right ministry cell instantly. Share specifics for faster turnarounds.
-          </DialogDescription>
+          <DialogDescription className="text-base">{t('reportProblem.dialogDescription')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4 max-h-[80vh] overflow-y-auto pr-2 custom-scroll">
           <Card className="border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent">
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Problem details</CardTitle>
-              <CardDescription>
-                Keep it short and actionable. Ministries rely on the first 140 characters for triage.
-              </CardDescription>
+              <CardTitle className="text-xl">{t('reportProblem.problemDetailsTitle')}</CardTitle>
+              <CardDescription>{t('reportProblem.problemDetailsDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="title">Problem title *</Label>
+                <Label htmlFor="title">{t('reportProblem.titleLabel')}</Label>
                 <Input
                   id="title"
-                  placeholder="E.g. Broken streetlight on main road"
+                  placeholder={t('reportProblem.titlePlaceholder')}
                   value={formData.title}
                   onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
                   required
@@ -425,13 +422,13 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Category *</Label>
+                  <Label htmlFor="category">{t('reportProblem.categoryLabel')}</Label>
                   <Select
                     value={formData.category}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder={t('reportProblem.selectCategory')} />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
@@ -453,10 +450,10 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">{t('reportProblem.descriptionLabel')}</Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe the problem clearly..."
+                  placeholder={t('reportProblem.descriptionPlaceholder')}
                   rows={5}
                   value={formData.description}
                   onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
@@ -497,17 +494,17 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
 
           <Card className="border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent">
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Location & coverage</CardTitle>
-              <CardDescription>Pick where the issue exists. Accurate pins help route your report to the correct ward engineer.</CardDescription>
+              <CardTitle className="text-xl">{t('reportProblem.locationTitle')}</CardTitle>
+              <CardDescription>{t('reportProblem.locationDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Compass className="h-4 w-4 text-primary" />Auto location
+                      <Compass className="h-4 w-4 text-primary" />{t('reportProblem.autoLocationTitle')}
                     </p>
-                    <p className="text-xs text-muted-foreground">Use device GPS and fine-tune the area name before submitting.</p>
+                    <p className="text-xs text-muted-foreground">{t('reportProblem.autoLocationDescription')}</p>
                   </div>
                   <Button
                     type="button"
@@ -520,13 +517,13 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                     disabled={locationLoading}
                   >
                     {locationLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Navigation className="mr-2 h-4 w-4" />}
-                    {locationLoading ? "Detecting..." : "Detect my location"}
+                    {locationLoading ? t('reportProblem.detecting') : t('reportProblem.detectLocation')}
                   </Button>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="latitude">Latitude *</Label>
+                    <Label htmlFor="latitude">{t('reportProblem.latitudeLabel')}</Label>
                     <Input
                       id="latitude"
                       inputMode="decimal"
@@ -541,7 +538,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="longitude">Longitude *</Label>
+                    <Label htmlFor="longitude">{t('reportProblem.longitudeLabel')}</Label>
                     <Input
                       id="longitude"
                       inputMode="decimal"
@@ -558,22 +555,22 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="auto-area">Area details (auto)</Label>
+                  <Label htmlFor="auto-area">{t('reportProblem.autoAreaLabel')}</Label>
                   <Textarea
                     id="auto-area"
-                    placeholder="Add nearest landmark, street name, or ward"
+                    placeholder={t('forms.placeholders.landmark')}
                     rows={3}
                     value={autoAreaDetails}
                     onChange={(e) => setAutoAreaDetails(e.target.value)}
                   />
                   {resolvedAreaHint && (
-                    <p className="text-xs text-muted-foreground">Detected area: {resolvedAreaHint}</p>
+                    <p className="text-xs text-muted-foreground">{t('reportProblem.detectedArea', { area: resolvedAreaHint })}</p>
                   )}
                   {addressLookupState === "loading" && (
-                    <p className="text-xs text-muted-foreground">Resolving address…</p>
+                    <p className="text-xs text-muted-foreground">{t('reportProblem.resolvingAddress')}</p>
                   )}
                   {addressLookupState === "error" && (
-                    <p className="text-xs text-destructive">Couldn't fetch area details. You can still continue.</p>
+                    <p className="text-xs text-destructive">{t('reportProblem.resolveAddressFailed')}</p>
                   )}
                 </div>
               </div>
@@ -582,9 +579,9 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <MapPin className="h-4 w-4 text-primary" /> Manual map
+                      <MapPin className="h-4 w-4 text-primary" /> {t('reportProblem.manualMapTitle')}
                     </p>
-                    <p className="text-xs text-muted-foreground">Pick a state, district, and area suggestion to lock the pin.</p>
+                    <p className="text-xs text-muted-foreground">{t('reportProblem.manualMapDescription')}</p>
                   </div>
                 </div>
 
@@ -622,38 +619,38 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-                    <p className="text-xs text-muted-foreground">State / UT</p>
-                    <p className="text-sm font-medium text-foreground">{manualState ?? "Awaiting selection"}</p>
+                    <p className="text-xs text-muted-foreground">{t('locationPicker.stateLabel')}</p>
+                    <p className="text-sm font-medium text-foreground">{manualState ?? t('reportProblem.awaitingSelection')}</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-black/10 p-3">
-                    <p className="text-xs text-muted-foreground">District</p>
-                    <p className="text-sm font-medium text-foreground">{manualDistrict ?? "Choose via dropdown"}</p>
+                    <p className="text-xs text-muted-foreground">{t('locationPicker.districtLabel')}</p>
+                    <p className="text-sm font-medium text-foreground">{manualDistrict ?? t('reportProblem.chooseViaDropdown')}</p>
                   </div>
                 </div>
 
                 {manualSuggestionLabel && (
-                  <p className="text-sm text-muted-foreground">Selected area suggestion: {manualSuggestionLabel}</p>
+                  <p className="text-sm text-muted-foreground">{t('reportProblem.selectedAreaSuggestion', { suggestion: manualSuggestionLabel })}</p>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="manual-area">Area details (manual)</Label>
+                  <Label htmlFor="manual-area">{t('reportProblem.manualAreaLabel')}</Label>
                   <Textarea
                     id="manual-area"
-                    placeholder="House number, colony, block, nearby facility"
+                    placeholder={t('forms.placeholders.landmark')}
                     rows={3}
                     value={manualAreaDetails}
                     onChange={(e) => setManualAreaDetails(e.target.value)}
                     disabled={!manualState || !manualDistrict}
                   />
                   {(!manualState || !manualDistrict) && (
-                    <p className="text-xs text-muted-foreground">Select a state and district to enable manual area notes.</p>
+                    <p className="text-xs text-muted-foreground">{t('reportProblem.selectStateDistrictToEnable')}</p>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="pincode">Pincode *</Label>
+                  <div className="flex items-center justify-between">
+                  <Label htmlFor="pincode">{t('reportProblem.pincodeLabel')}</Label>
                   {formData.latitude != null && formData.longitude != null && (
                     <Button
                       type="button"
@@ -665,13 +662,13 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                         detectAddressFromCoords(formData.latitude, formData.longitude, true)
                       }
                     >
-                      Refresh from pin
+                      {t('buttons.refreshFromPin')}
                     </Button>
                   )}
                 </div>
                 <Input
                   id="pincode"
-                  placeholder="Enter 6-digit pincode"
+                  placeholder={t('reportProblem.pincodePlaceholder')}
                   maxLength={6}
                   value={formData.pincode}
                   onChange={(e) => {
@@ -682,15 +679,15 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
                   onBlur={() => locateByPincode(formData.pincode)}
                   required
                 />
-                {resolvedAreaHint && <p className="text-sm text-muted-foreground">Area • {resolvedAreaHint}</p>}
+                {resolvedAreaHint && <p className="text-sm text-muted-foreground">{t('reportProblem.areaDetected', { area: resolvedAreaHint })}</p>}
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-white/10 bg-gradient-to-b from-white/[0.03] to-transparent">
             <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Evidence & attachments</CardTitle>
-              <CardDescription>Upload a sharp photo/video or a signed document. Max 25 MB.</CardDescription>
+              <CardTitle className="text-xl">{t('reportProblem.evidenceTitle')}</CardTitle>
+              <CardDescription>{t('reportProblem.evidenceDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div
@@ -711,9 +708,9 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               >
                 <Upload className="h-8 w-8 text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  {attachment ? attachment.name : "Click to upload or drag & drop"}
+                  {attachment ? attachment.name : t('reportProblem.uploadClickOrDrag')}
                 </p>
-                <p className="text-xs text-muted-foreground">PNG, JPG, MP4, PDF up to 25 MB</p>
+                <p className="text-xs text-muted-foreground">{t('reportProblem.uploadFormats')}</p>
                 <input
                   ref={fileInputRef}
                   id="attachment"
@@ -777,14 +774,14 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
               onClick={onClose}
               className="rounded-xl border-white/20 bg-transparent px-6 text-sm"
             >
-              Cancel
+              {t('buttons.cancel')}
             </Button>
             <Button
               type="submit"
               disabled={loading}
               className="rounded-xl bg-gradient-to-r from-primary via-primary/80 to-primary/60 px-8 text-sm font-semibold text-white shadow-lg shadow-primary/30 hover:opacity-90"
             >
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…</> : "Submit report"}
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('reportProblem.submitting')}</> : t('buttons.submit')}
             </Button>
           </DialogFooter>
         </form>

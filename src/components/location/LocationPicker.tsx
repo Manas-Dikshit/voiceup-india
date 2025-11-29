@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePlacesAutocomplete } from '@/hooks/usePlacesAutocomplete';
 import { useReverseGeocode } from '@/hooks/useReverseGeocode';
@@ -217,6 +218,7 @@ export default function LocationPicker({
   googlePlacesApiKey,
   enableManualPinToggle = true,
 }: Props) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<{ lat: number; lng: number } | null>(initial);
   const [map, setMap] = useState<L.Map | null>(null);
   const [stateName, setStateName] = useState(initialAdministrative?.state ?? '');
@@ -504,7 +506,7 @@ export default function LocationPicker({
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">State / UT</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('locationPicker.stateLabel')}</label>
               <Select
                 value={stateName}
                 onValueChange={(value) => {
@@ -513,8 +515,8 @@ export default function LocationPicker({
                   setAreaInput('');
                 }}
               >
-                <SelectTrigger className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground transition hover:border-primary/30 hover:bg-white/[0.04] focus:border-primary/50 focus:ring-2 focus:ring-primary/20">
-                  <SelectValue placeholder="Select state" />
+                  <SelectTrigger className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground transition hover:border-primary/30 hover:bg-white/[0.04] focus:border-primary/50 focus:ring-2 focus:ring-primary/20">
+                  <SelectValue placeholder={t('locationPicker.selectState') as string} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px] rounded-xl border border-white/10 bg-background/95 backdrop-blur-xl">
                   {Object.keys(STATE_DISTRICTS)
@@ -532,17 +534,17 @@ export default function LocationPicker({
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">District</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('locationPicker.districtLabel')}</label>
               <Select
                 value={selectedDistrictName ?? ''}
                 onValueChange={(value) => setSelectedDistrictName(value || null)}
                 disabled={!stateName}
               >
-                <SelectTrigger
+                  <SelectTrigger
                   disabled={!stateName}
                   className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground transition hover:border-primary/30 hover:bg-white/[0.04] focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <SelectValue placeholder={stateName ? 'Choose district' : 'Select state first'} />
+                  <SelectValue placeholder={stateName ? (t('locationPicker.chooseDistrict') as string) : (t('locationPicker.selectStateFirst') as string)} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px] rounded-xl border border-white/10 bg-background/95 backdrop-blur-xl">
                   {districtOptions.length > 0 ? (
@@ -558,7 +560,7 @@ export default function LocationPicker({
                         </SelectItem>
                       ))
                   ) : (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">No districts available</div>
+                    <div className="px-3 py-2 text-sm text-muted-foreground">{t('locationPicker.noDistricts')}</div>
                   )}
                 </SelectContent>
               </Select>
@@ -566,7 +568,7 @@ export default function LocationPicker({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Area / neighbourhood</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('locationPicker.areaLabel')}</label>
             <div className="relative">
               <Input
                 ref={areaInputRef}
@@ -589,8 +591,8 @@ export default function LocationPicker({
                 }}
                 placeholder={
                   !stateName || !selectedDistrictName
-                    ? 'Select state and district first'
-                    : 'Search area, colony, ward, street...'
+                    ? (t('locationPicker.selectStateFirst') as string)
+                    : (t('locationPicker.searchAreaPlaceholder') as string)
                 }
                 disabled={!stateName || !selectedDistrictName}
                 className="h-10 rounded-xl border border-white/10 bg-white/[0.02] px-4 text-sm text-foreground placeholder:text-muted-foreground/60 transition hover:border-primary/30 hover:bg-white/[0.04] focus:border-primary/50 focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
@@ -604,7 +606,7 @@ export default function LocationPicker({
             )}
             {areaError && <p className="text-xs text-destructive">{areaError}</p>}
             {areaSuggestions.length === 0 && areaInput.trim().length >= 3 && !areaLoading && (
-              <p className="text-xs text-muted-foreground">No matches found — try another spelling or drop a pin.</p>
+              <p className="text-xs text-muted-foreground">{t('locationPicker.noMatches')}</p>
             )}
             {/* Always show suggestions when available (works with or without Google Places widget) */}
             {areaSuggestions.length > 0 && (
@@ -636,7 +638,7 @@ export default function LocationPicker({
                 className="mt-2 w-full justify-center rounded-xl border border-dashed border-primary/40 bg-white/[0.02] text-sm font-medium transition hover:border-primary/60 hover:bg-primary/5"
                 onClick={() => setManualPinMode((prev) => !prev)}
               >
-                {manualPinMode ? '✓ Manual pin mode enabled' : 'Drop a pin manually'}
+                {manualPinMode ? (t('locationPicker.manualPinEnabled') as string) : (t('locationPicker.dropPinManual') as string)}
               </Button>
             )}
           </div>
@@ -708,12 +710,12 @@ export default function LocationPicker({
                 {stateName && <span>State: {stateName}</span>}
                 {selectedDistrictName && <span>District: {selectedDistrictName}</span>}
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ${confidence === 'high' ? 'bg-emerald-500/20 text-emerald-400' : confidence === 'medium' ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-500/30 text-slate-200'}`}>
-                  {confidence} confidence
+                  {confidence === 'high' ? t('locationPicker.confidenceHigh') : confidence === 'medium' ? t('locationPicker.confidenceMedium') : t('locationPicker.confidenceLow')}
                 </span>
               </div>
             </>
           ) : (
-            <p>Select a mode to drop the first pin.</p>
+            <p>{t('locationPicker.selectModeFirst')}</p>
           )}
         </div>
         <Button
@@ -722,7 +724,7 @@ export default function LocationPicker({
           disabled={!selected}
           className="rounded-lg bg-primary/80 px-4 text-sm font-semibold text-white shadow-lg shadow-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Use this location
+          {t('locationPicker.useThisLocation')}
         </Button>
       </div>
     </div>
