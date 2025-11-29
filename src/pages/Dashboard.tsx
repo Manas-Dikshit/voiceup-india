@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
@@ -99,6 +99,8 @@ const categories: Category[] = [
   { value: "other", label: "Other" },
 ];
 
+const NEARBY_RADIUS_METERS = 50000;
+
 const DEFAULT_IMPACT_DATA: ImpactTrackerRow[] = [
   {
     id: "mock1",
@@ -180,6 +182,70 @@ const parseLocationObject = (loc: LocationCoordinates): { longitude: number; lat
   return null;
 };
 
+const normalizeNearbyRow = (row: RawProblem): RawProblem => {
+  const out: RawProblem = { ...row };
+  out.votes_count = out.votes_count !== undefined && out.votes_count !== null
+    ? Number(out.votes_count)
+    : 0;
+
+  if ((out.latitude === null || out.latitude === undefined) && out.location) {
+    const loc = out.location;
+    if (typeof loc === 'string') {
+      const parsed = parseLocationString(loc);
+      if (parsed) {
+        out.longitude = parsed.longitude;
+        out.latitude = parsed.latitude;
+      }
+    } else if (typeof loc === 'object' && loc !== null) {
+      const parsed = parseLocationObject(loc);
+      if (parsed) {
+        out.longitude = parsed.longitude;
+        out.latitude = parsed.latitude;
+      }
+    }
+  }
+
+  return out;
+};
+
+const shouldFallbackToNearbyBoundingBox = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string; details?: string };
+  const code = (err.code ?? '').toLowerCase();
+  const text = `${err.message ?? ''} ${err.details ?? ''}`.toLowerCase();
+  return (
+    code.includes('404') ||
+    text.includes('get_nearby_problems_for_map') ||
+    text.includes('function not found') ||
+    text.includes('does not exist')
+  );
+};
+
+const fetchNearbyProblemsFallback = async (
+  latitude: number,
+  longitude: number
+): Promise<RawProblem[]> => {
+  const latDelta = NEARBY_RADIUS_METERS / 111320; // approx meters per degree latitude
+  const lonDenominator = Math.cos((latitude * Math.PI) / 180) * 111320;
+  const lonDelta = lonDenominator !== 0
+    ? NEARBY_RADIUS_METERS / Math.abs(lonDenominator)
+    : NEARBY_RADIUS_METERS / 111320;
+
+  const { data, error } = await supabase
+    .from('problems')
+    .select('*')
+    .eq('is_flagged', false)
+    .gte('latitude', latitude - latDelta)
+    .lte('latitude', latitude + latDelta)
+    .gte('longitude', longitude - lonDelta)
+    .lte('longitude', longitude + lonDelta)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+  return (data || []) as RawProblem[];
+};
+
 const normalizeProblem = (raw: RawProblem): Problem => {
   let latitude: number | null = raw?.latitude ?? null;
   let longitude: number | null = raw?.longitude ?? null;
@@ -248,37 +314,20 @@ const fetchNearbyProblems = async (
   const { data, error } = await supabase.rpc('get_nearby_problems_for_map', {
     p_lat: latitude,
     p_lng: longitude,
-    p_radius_meters: 50000
+    p_radius_meters: NEARBY_RADIUS_METERS
   });
 
-  if (error) throw new Error(error.message);
-  const rows = (data || []) as RawProblem[];
-
-  return rows.map((r) => {
-    const out: RawProblem = { ...r };
-    out.votes_count = out.votes_count !== undefined && out.votes_count !== null
-      ? Number(out.votes_count)
-      : 0;
-
-    if ((out.latitude === null || out.latitude === undefined) && out.location) {
-      const loc = out.location;
-      if (typeof loc === 'string') {
-        const parsed = parseLocationString(loc);
-        if (parsed) {
-          out.longitude = parsed.longitude;
-          out.latitude = parsed.latitude;
-        }
-      } else if (typeof loc === 'object' && loc !== null) {
-        const parsed = parseLocationObject(loc);
-        if (parsed) {
-          out.longitude = parsed.longitude;
-          out.latitude = parsed.latitude;
-        }
-      }
+  if (error) {
+    if (shouldFallbackToNearbyBoundingBox(error)) {
+      console.warn('[Dashboard] Nearby problems RPC missing, using fallback query');
+      const fallbackRows = await fetchNearbyProblemsFallback(latitude, longitude);
+      return fallbackRows.map(normalizeNearbyRow);
     }
+    throw new Error(error.message);
+  }
 
-    return out;
-  });
+  const rows = (data || []) as RawProblem[];
+  return rows.map(normalizeNearbyRow);
 };
 
 // ==================== Component ====================
