@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
 import { Problem } from "@/lib/types";
+import { Input } from "@/components/ui/input";
 
 interface Profile {
   id: string;
@@ -27,6 +28,18 @@ interface Profile {
   badges?: string[];
   [key: string]: any;
 }
+
+const categories = [
+  { value: "roads", label: "Roads & Infra" },
+  { value: "water", label: "Water Supply" },
+  { value: "electricity", label: "Electricity" },
+  { value: "sanitation", label: "Sanitation & Waste" },
+  { value: "education", label: "Education" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "pollution", label: "Pollution" },
+  { value: "safety", label: "Public Safety" },
+  { value: "other", label: "Other" },
+];
 
 interface ContributionMetrics {
   reportsCount: number;
@@ -75,12 +88,22 @@ const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []) => {
   return Array.from(new Set([...(existingBadges ?? []), ...earned]));
 };
 
-const fetchProblems = async () => {
-  const { data, error } = await supabase
+const fetchProblems = async (searchTerm: string, selectedCategory: string | null) => {
+  let query = supabase
     .from("problems")
     .select("*")
-    .eq("is_flagged", false)
-    .order("created_at", { ascending: false });
+    .eq("is_flagged", false);
+
+  if (searchTerm) {
+    query = query.ilike("title", `%${searchTerm}%`);
+  }
+
+  if (selectedCategory) {
+    query = query.eq("category", selectedCategory);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+
   if (error) throw new Error(error.message);
   return data || [];
 };
@@ -120,15 +143,21 @@ const fetchNearbyProblems = async (latitude: number, longitude: number) => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  // Default map center can be configured via Vite env variables.
+  const DEFAULT_MAP_CENTER_LAT = Number(import.meta.env.VITE_DEFAULT_MAP_LAT ?? 20.2960);
+  const DEFAULT_MAP_CENTER_LNG = Number(import.meta.env.VITE_DEFAULT_MAP_LNG ?? 85.8246);
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
   const { position, error: locationError, loading: locationLoading } = useUserLocation();
   const [activeTab, setActiveTab] = useState("all");
+  const insightsRef = useRef<HTMLDivElement | null>(null);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [mapFocus, setMapFocus] = useState<{ lat: number | null, lng: number | null, id?: string, pincode?: string } | null>(null);
   const [impactStats, setImpactStats] = useState<ImpactStats | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -164,8 +193,8 @@ const Dashboard = () => {
   };
 
   const { data: problems, isLoading: problemsLoading } = useQuery({
-    queryKey: ["problems"],
-    queryFn: fetchProblems,
+    queryKey: ["problems", searchTerm, selectedCategory],
+    queryFn: () => fetchProblems(searchTerm, selectedCategory),
   });
 
   const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery({
@@ -261,6 +290,29 @@ const Dashboard = () => {
       supabase.removeChannel(votesChannel);
     };
   }, [queryClient, profile?.id]);
+
+  // ensure insights tab is scrolled into view when activated via Map button
+  useEffect(() => {
+    if (activeTab !== 'insights') return;
+    if (!insightsRef || !insightsRef.current) return;
+
+    try {
+      // First ensure the insights panel is centered in the viewport, then nudge it up
+      // by a fixed fraction so the map sits ~25% above center. This avoids overscrolling
+      // when the triggering problem is far down the page.
+      insightsRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+      // Small timeout to allow the browser to perform the instant centering, then smooth nudge
+      window.setTimeout(() => {
+        window.scrollBy({ top: -(window.innerHeight * 0.25), behavior: 'smooth' });
+      }, 50);
+    } catch (e) {
+      try {
+        insightsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        insightsRef.current.scrollIntoView();
+      }
+    }
+  }, [activeTab, mapFocus]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -492,6 +544,37 @@ const Dashboard = () => {
             Report a Problem
           </Button>
         </div>
+
+        {/* Search and Filter */}
+        <div className="mb-6 space-y-4">
+          <Input
+            placeholder="Search by title..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">Categories:</span>
+            <Button
+              variant={!selectedCategory ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(null)}
+            >
+              All
+            </Button>
+            {categories.map(category => (
+              <Button
+                key={category.value}
+                variant={selectedCategory === category.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(category.value)}
+              >
+                {category.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {/* Problems List */}
         <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
           <TabsList>
@@ -506,7 +589,9 @@ const Dashboard = () => {
               {(Array.isArray(problems) ? problems : []).length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    No problems reported yet. Be the first to report one!
+                    {searchTerm || selectedCategory
+                      ? "No problems found matching your filters."
+                      : "No problems reported yet. Be the first to report one!"}
                   </CardContent>
                 </Card>
               ) : (
@@ -523,9 +608,9 @@ const Dashboard = () => {
                       problem={problem}
                       currentUserId={profile?.id}
                       onShowOnMap={(p: Problem) => {
-                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
-                        setActiveTab('insights');
-                      }}
+                          setMapFocus({ lat: DEFAULT_MAP_CENTER_LAT, lng: DEFAULT_MAP_CENTER_LNG, id: p.id, pincode: (p as any).pincode });
+                          setActiveTab('insights');
+                        }}
                     />
                   );
                 })
@@ -577,7 +662,7 @@ const Dashboard = () => {
                       problem={problem}
                       currentUserId={profile?.id}
                       onShowOnMap={(p: Problem) => {
-                        setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                        setMapFocus({ lat: DEFAULT_MAP_CENTER_LAT, lng: DEFAULT_MAP_CENTER_LNG, id: p.id, pincode: (p as any).pincode });
                         setActiveTab('insights');
                       }}
                     />
@@ -606,7 +691,7 @@ const Dashboard = () => {
                     problem={problem}
                     currentUserId={profile?.id}
                     onShowOnMap={(p: Problem) => {
-                      setMapFocus({ lat: p.latitude ?? null, lng: p.longitude ?? null, id: p.id, pincode: (p as any).pincode });
+                      setMapFocus({ lat: DEFAULT_MAP_CENTER_LAT, lng: DEFAULT_MAP_CENTER_LNG, id: p.id, pincode: (p as any).pincode });
                       setActiveTab('insights');
                     }}
                   />
@@ -615,17 +700,38 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="insights" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Geospatial Problem Correlations</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[500px] p-0">
-                <CorrelationMap focus={mapFocus ? { lat: mapFocus.lat, lng: mapFocus.lng, zoom: 14, id: mapFocus.id, pincode: mapFocus.pincode } : null} />
-              </CardContent>
-            </Card>
+            <div
+              ref={insightsRef}
+              style={
+                activeTab === 'insights'
+                  ? { minHeight: 'calc(100vh - 120px)', display: 'flex', alignItems: 'stretch' }
+                  : undefined
+              }
+            >
+              <Card className={activeTab === 'insights' ? 'w-full flex flex-col' : ''}>
+                <CardHeader>
+                  <CardTitle>Geospatial Problem Correlations</CardTitle>
+                </CardHeader>
+                <CardContent
+                  className="p-0"
+                  style={
+                    activeTab === 'insights'
+                      ? { height: 'calc(100vh - 200px)', padding: 0 }
+                      : undefined
+                  }
+                >
+                  <CorrelationMap
+                    focus={mapFocus ? { lat: mapFocus.lat, lng: mapFocus.lng, zoom: 14, id: mapFocus.id, pincode: mapFocus.pincode } : null}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* When user clicks "Map" on a problem we switch to the insights tab and scroll the map into view */}
+      {/* UseEffect placed after main content */}
 
       {/* Report Problem Dialog */}
       {showReportForm && (

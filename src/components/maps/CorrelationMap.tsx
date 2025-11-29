@@ -121,13 +121,46 @@ const _RecenterMap = ({ lat, lng, zoom }: { lat: number; lng: number; zoom: numb
   return null;
 };
 
+// Ensure Leaflet invalidates size when the map becomes visible or focus changes.
+// This prevents tiles from being blank when the container was previously hidden.
+const InvalidateMapOnFocus = ({ focus }: { focus?: Focus }) => {
+  const map = useMap();
+  React.useEffect(() => {
+    if (!map) return;
+    const run = () => {
+      try {
+        // invalidate size and trigger a redraw
+        map.invalidateSize();
+      } catch (e) {
+        // ignore
+      }
+    };
+    // run immediately and retry a couple times to be robust across tab transitions
+    run();
+    const t1 = window.setTimeout(run, 150);
+    const t2 = window.setTimeout(run, 600);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [map, focus]);
+  return null;
+};
+
 const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   const { position: userLocation, error: locationError, loading: locationLoading } = useUserLocation();
 
+  // Determine the center to use for queries and initial map view:
+  const queryCenter = React.useMemo(() => {
+    if (focus && focus.lat != null && focus.lng != null) return { lat: focus.lat, lng: focus.lng };
+    if (userLocation && userLocation.latitude != null && userLocation.longitude != null) return { lat: userLocation.latitude, lng: userLocation.longitude };
+    return { lat: defaultCenter[0], lng: defaultCenter[1] };
+  }, [focus, userLocation]);
+
   const { data: correlations = [], isLoading: correlationsLoading } = useQuery({
-    queryKey: ['nearbyCorrelations', userLocation?.latitude, userLocation?.longitude],
-    queryFn: () => fetchNearbyCorrelations(userLocation!.latitude, userLocation!.longitude, 10000), // 10km radius
-    enabled: !!userLocation,
+    queryKey: ['nearbyCorrelations', queryCenter.lat, queryCenter.lng],
+    queryFn: () => fetchNearbyCorrelations(queryCenter.lat, queryCenter.lng, 10000), // 10km radius
+    enabled: true,
   });
 
   // Fetch nearby problems to show as markers
@@ -168,9 +201,9 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   };
 
   const { data: problemMarkersRaw = [], isLoading: problemsLoading } = useQuery({
-    queryKey: ['nearbyProblemsMap', userLocation?.latitude, userLocation?.longitude],
-    queryFn: () => fetchNearbyProblemsForMap(userLocation!.latitude, userLocation!.longitude),
-    enabled: !!userLocation,
+    queryKey: ['nearbyProblemsMap', queryCenter.lat, queryCenter.lng],
+    queryFn: () => fetchNearbyProblemsForMap(queryCenter.lat, queryCenter.lng),
+    enabled: true,
   });
 
   // Fetch the focused problem explicitly to ensure it's on the map
@@ -291,13 +324,8 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
   
 
-  if (locationLoading) {
-    return <div className="flex items-center justify-center h-full"><p>Loading map...</p></div>;
-  }
-
-  if (locationError) {
-    return <div className="flex items-center justify-center h-full"><p className="text-red-500">Error: {locationError}</p></div>;
-  }
+  // Always render the map. If location loading/permission failed, we fallback to a default center.
+  // We still expose a small notice inside the map UI when location permission is denied.
 
   // handle focus: recenter and open popup when focus prop changes
   const map = (null as any);
@@ -399,7 +427,19 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   return (
     <MapErrorBoundary>
       <div className="relative h-full w-full rounded-2xl border border-border bg-card shadow-sm">
-        <MapContainer center={mapCenter} zoom={12} style={containerStyle} className="h-full w-full rounded-2xl">
+        {/*
+            Use a key derived from the `focus` prop so the MapContainer remounts when focus changes.
+            This is a robust fix for Leaflet rendering issues that occur when the map's container
+            was previously hidden or offscreen. We still call invalidateSize() from
+            InvalidateMapOnFocus to be extra safe.
+        */}
+        <MapContainer
+          key={`map-${focus?.id ?? focus?.pincode ?? (focus?.lat ? `${focus.lat}-${focus.lng}` : 'default')}`}
+          center={focus && focus.lat != null && focus.lng != null ? [focus.lat, focus.lng] : mapCenter}
+          zoom={12}
+          style={containerStyle}
+          className="h-full w-full rounded-2xl"
+        >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -407,6 +447,8 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
 
           {/* Recenter component to change view when focus prop provided */}
           {focus && <FocusHandler focus={focus} />}
+          {/* Ensure Leaflet invalidates size when shown or when focus changes */}
+          <InvalidateMapOnFocus focus={focus} />
 
           {correlationsLoading ? (
             <div className="flex h-full items-center justify-center"><p>Loading correlation data...</p></div>
