@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
 import React, { useEffect, useState } from "react";
-=======
-import React from "react";
 import { useTranslation } from 'react-i18next';
->>>>>>> Stashed changes
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -122,7 +118,6 @@ const statusColors: Record<string, string> = {
   rejected: "bg-rose-500/10 text-rose-600",
 };
 
-<<<<<<< Updated upstream
 const SkeletonLoader: React.FC = () => (
   <div className="space-y-2">
     {Array.from({ length: 3 }).map((_, i) => (
@@ -134,14 +129,6 @@ const SkeletonLoader: React.FC = () => (
     ))}
   </div>
 );
-=======
-const ProblemCard = ({ problem, currentUserId, onShowOnMap }: ProblemCardProps) => {
-  const { t } = useTranslation();
-  const { mutate: vote, isPending: isVoting } = useVote();
-  const currentVote = problem.user_vote ?? null;
-  const isUpvoted = currentVote === 'upvote';
-  const isDownvoted = currentVote === 'downvote';
->>>>>>> Stashed changes
 
 interface AISolutionsSectionProps {
   loading: boolean;
@@ -212,6 +199,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
   currentUserId,
   onShowOnMap,
 }) => {
+  const { t } = useTranslation();
   const { mutate: vote, isPending: isVoting } = useVote();
   const { loading: aiLoading, suggestions, cached, error: aiError, regenerate } =
     useAISolutions(problem.id);
@@ -292,13 +280,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             </div>
           </div>
           <div className="text-right">
-<<<<<<< Updated upstream
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">
-              Net votes
-            </div>
-=======
             <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('problemCard.netVotes')}</div>
->>>>>>> Stashed changes
             <div className="text-3xl font-black text-foreground drop-shadow-sm">
               {problem.votes_count ?? 0}
             </div>
@@ -381,13 +363,9 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             >
               <Link to={`/problem/${problem.id}`}>
                 <MessageSquare className="mr-2 h-4 w-4" />
-<<<<<<< Updated upstream
                 {problem.comments_count
-                  ? `Comments (${problem.comments_count})`
-                  : "Comments"}
-=======
-                {problem.comments_count ? t('problemCard.commentsWithCount', { count: problem.comments_count }) : t('problemCard.comments')}
->>>>>>> Stashed changes
+                  ? t('problemCard.commentsWithCount', { count: problem.comments_count })
+                  : t('problemCard.comments')}
               </Link>
             </Button>
             <Button
