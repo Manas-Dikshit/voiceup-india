@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User as UserIcon, LayoutDashboard, ListChecks, BarChart2, FileDown, Map, ShieldCheck, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { User } from "@supabase/supabase-js";
+import { useTranslation } from 'react-i18next';
 
 interface MinistryHeaderProps {
   user: User;
@@ -10,6 +11,7 @@ interface MinistryHeaderProps {
 
 const MinistryHeader = ({ user }: MinistryHeaderProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -70,7 +72,7 @@ const MinistryHeader = ({ user }: MinistryHeaderProps) => {
             </div>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
+              {t('buttons.signOut')}
             </Button>
           </div>
         </div>
