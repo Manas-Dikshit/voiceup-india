@@ -19,13 +19,6 @@ import {
   BarChart3,
   Lightbulb,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Globe } from 'lucide-react';
 import Header from "@/components/Header";
 import MinistryMap, {
   MinistryMapFilters,
@@ -39,6 +32,37 @@ import ResourceDispatcher from "@/components/emergency/ResourceDispatcher";
 import IncidentPrioritizer from "@/components/emergency/IncidentPrioritizer";
 import CrisisMap from "@/components/emergency/CrisisMap";
 import PredictedZonesViewer from "@/components/emergency/PredictedZonesViewer";
+// Place inside the main MinistryDashboard component:
+
+
+
+    // Mock predicted zones for demo (replace with API data in production)
+    const mockZones = [
+      {
+        id: "zone1",
+        latitude: 20.30,
+        longitude: 85.82,
+        radius_km: 3,
+        risk_level: 8,
+        forecast_confidence: 0.85,
+        affected_area_description: "Central Bhubaneswar",
+        affected_population_estimate: 12000,
+        predicted_severity: "critical",
+        forecast_updated_at: new Date().toISOString(),
+      },
+      {
+        id: "zone2",
+        latitude: 20.32,
+        longitude: 85.80,
+        radius_km: 2,
+        risk_level: 6,
+        forecast_confidence: 0.65,
+        affected_area_description: "Ward 7, North Bhubaneswar",
+        affected_population_estimate: 8000,
+        predicted_severity: "high",
+        forecast_updated_at: new Date().toISOString(),
+      },
+    ];
 import { problem_category } from "@/integrations/supabase/types";
 import { DateRange } from "react-day-picker";
 import { useDebounce } from "use-debounce";
@@ -55,6 +79,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+
+// ---------------- CONSTANTS ----------------
 
 type ImpactRow = {
   id: string;
@@ -100,6 +126,8 @@ const mockImpactData: ImpactRow[] = [
     engagement_score: 8.9,
   },
 ];
+
+// ---------------- MAIN COMPONENT ----------------
 
 const MinistryDashboard = () => {
     // Live crisis zones state
@@ -177,59 +205,9 @@ const MinistryDashboard = () => {
   </Card>
   // Emergency system state (must be at the top for all usages)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
-  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [recentAlerts, setRecentAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
-  const [deployments, setDeployments] = useState<any[]>([]);
-  const [deploymentsLoading, setDeploymentsLoading] = useState(false);
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [incidentsLoading, setIncidentsLoading] = useState(true);
 
-  // Mock predicted zones for demo
-  const mockZones = [
-    {
-      id: "zone1",
-      latitude: 20.30,
-      longitude: 85.82,
-      radius_km: 3,
-      risk_level: 8,
-      forecast_confidence: 0.85,
-      affected_area_description: "Central Bhubaneswar",
-      affected_population_estimate: 12000,
-      predicted_severity: "critical",
-      forecast_updated_at: new Date().toISOString(),
-    },
-    {
-      id: "zone2",
-      latitude: 20.32,
-      longitude: 85.80,
-      radius_km: 2,
-      risk_level: 6,
-      forecast_confidence: 0.65,
-      affected_area_description: "Ward 7, North Bhubaneswar",
-      affected_population_estimate: 8000,
-      predicted_severity: "high",
-      forecast_updated_at: new Date().toISOString(),
-    },
-  ];
-
-  // Fetch deployments for selected incident
-  useEffect(() => {
-    if (!selectedIncidentId) {
-      setDeployments([]);
-      return;
-    }
-    setDeploymentsLoading(true);
-    const fetchDeployments = async () => {
-      const { data } = await supabase
-        .from("resource_deployments")
-        .select("*")
-        .eq("incident_id", selectedIncidentId)
-        .order("assigned_at", { ascending: false });
-      setDeployments(data ?? []);
-      setDeploymentsLoading(false);
-    };
-    fetchDeployments();
-  }, [selectedIncidentId]);
 
     // Resource deployments state
     const [deployments, setDeployments] = useState([]);
@@ -302,40 +280,21 @@ const MinistryDashboard = () => {
       ]);
       // Optionally, refetch alerts
       const { data } = await supabase
-        .from("emergency_incidents")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
-      setIncidents(data ?? []);
-      setIncidentsLoading(false);
-    };
-    fetchIncidents();
-  }, []);
-
-  // Fetch recent alerts from Supabase
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      setAlertsLoading(true);
-      const { data, error } = await supabase
         .from("alerts")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(10);
-      if (!error) setRecentAlerts(data ?? []);
-      setAlertsLoading(false);
+      setRecentAlerts(data ?? []);
     };
-    fetchAlerts();
-  }, []);
+  const { t } = useTranslation();
+  const [filters, setFilters] = useState<MinistryMapFilters>({});
+  const [mapData, setMapData] = useState<Correlation[]>([]);
+  const [date, setDate] = useState<DateRange | undefined>();
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [cityInput, setCityInput] = useState("");
+  const [debouncedCity] = useDebounce(cityInput, 500);
 
-  // Broadcast handler for AlertBroadcaster
-  const handleBroadcast = async (alertType: string, message: string, radiusKm: number) => {
-    const incidentId = selectedIncidentId ?? "ministry-incident";
-    await supabase.from("alerts").insert([{ incident_id: incidentId, alert_type: alertType, message, broadcast_status: "sent", recipients_count: 0 }]);
-    // Refetch alerts
-    const { data } = await supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(10);
-    setRecentAlerts(data ?? []);
-  };
-
+  // --------------- Fetch Impact Data ---------------
   const {
     data: impactResponse,
     refetch: refetchImpact,
@@ -347,12 +306,14 @@ const MinistryDashboard = () => {
     staleTime: 30000,
   });
 
+  // --------------- Ensure Fallback if Empty ---------------
   const impactRows: ImpactRow[] = useMemo(() => {
     const rawData = (impactResponse as any)?.data || impactResponse;
-    if (Array.isArray(rawData) && rawData.length > 0) return rawData as ImpactRow[];
-    return mockImpactData;
+    if (Array.isArray(rawData) && rawData.length > 0) return rawData;
+    return mockImpactData; // Always fallback to mock
   }, [impactResponse]);
 
+  // --------------- Filter Logic ---------------
   const handleFilterChange = useCallback(
     (key: keyof MinistryMapFilters, val: any) => {
       setFilters((prev) => {
@@ -383,10 +344,10 @@ const MinistryDashboard = () => {
     handleFilterChange("city", debouncedCity);
   }, [debouncedCity, handleFilterChange]);
 
+  // --------------- Correlation Stats ---------------
   const { topCorrelation, avgCorrelation } = useMemo(() => {
-    if (!mapData?.length) {
-      return { topCorrelation: null as Correlation | null, avgCorrelation: 0 };
-    }
+    if (!mapData?.length)
+      return { topCorrelation: null, avgCorrelation: 0 };
 
     const sorted = [...mapData].sort(
       (a, b) => b.correlation_score - a.correlation_score
@@ -396,30 +357,27 @@ const MinistryDashboard = () => {
     return { topCorrelation: sorted[0], avgCorrelation: avg };
   }, [mapData]);
 
+  // --------------- Real-time Updates ---------------
   useEffect(() => {
     const tables = ["problems", "solutions", "votes", "comments"];
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timer: NodeJS.Timeout;
 
     const channels = tables.map((t) =>
       supabase
         .channel(`${t}-impact-feed`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: t },
-          () => {
-            if (timer) clearTimeout(timer);
-            timer = setTimeout(() => refetchImpact(), 200);
-          }
-        )
+        .on("postgres_changes", { event: "*", schema: "public", table: t }, () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => refetchImpact(), 200);
+        })
         .subscribe()
     );
-
     return () => {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
       channels.forEach((c) => supabase.removeChannel(c));
     };
   }, [refetchImpact]);
 
+  // --------------- Export Handler ---------------
   const handleExport = () => {
     if (!mapData.length) return;
     const keys = Object.keys(mapData[0]);
@@ -436,11 +394,13 @@ const MinistryDashboard = () => {
     link.click();
   };
 
+  // --------------- UI Animation Config ---------------
   const fadeIn = {
     hidden: { opacity: 0, y: 10 },
     visible: { opacity: 1, y: 0 },
   };
 
+  // --------------- Filters Sidebar ---------------
   const FiltersPanel = (
     <aside className="w-full md:w-80 bg-gradient-to-b from-card/80 to-background backdrop-blur-xl border-r border-border/40 p-6 space-y-6">
       <h2 className="text-xl font-semibold flex items-center gap-2 text-primary">
@@ -449,9 +409,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">
-            {t('ministry.dateRange')}
-          </CardTitle>
+          <CardTitle className="text-base font-medium">{t('ministry.dateRange')}</CardTitle>
         </CardHeader>
         <CardContent>
           <DateRangePicker date={date} onDateChange={setDate} />
@@ -460,9 +418,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">
-            {t('ministry.categories')}
-          </CardTitle>
+          <CardTitle className="text-base font-medium">{t('ministry.categories')}</CardTitle>
         </CardHeader>
         <CardContent>
           <MultiSelect
@@ -476,9 +432,7 @@ const MinistryDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-medium">
-            {t('ministry.city')}
-          </CardTitle>
+          <CardTitle className="text-base font-medium">{t('ministry.city')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Input
@@ -491,6 +445,7 @@ const MinistryDashboard = () => {
     </aside>
   );
 
+  // --------------- Render ---------------
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-muted/10 to-background">
       <Header
@@ -507,35 +462,12 @@ const MinistryDashboard = () => {
           </Sheet>
         }
         right={
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Globe className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("hi")}>
-                  हिंदी (Hindi)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("od")}>
-                  ଓଡ଼ିଆ (Odia)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="text-right">
-              <p className="text-sm font-medium text-foreground">
-                {t('ministry.ministryOfficial')}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t('ministry.adminAccess')}
-              </p>
-            </div>
-          </>
+          <div className="text-right">
+            <p className="text-sm font-medium text-foreground">
+              {t('ministry.ministryOfficial')}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('ministry.adminAccess')}</p>
+          </div>
         }
       />
 
@@ -543,7 +475,7 @@ const MinistryDashboard = () => {
         <div className="hidden md:block">{FiltersPanel}</div>
 
         <main className="flex-1 flex flex-col overflow-y-auto h-full">
-          {/* Stats */}
+          {/* --- Stats --- */}
           <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-b border-border/20">
             {[
               {
@@ -552,9 +484,7 @@ const MinistryDashboard = () => {
                   ? `${topCorrelation.category_a} & ${topCorrelation.category_b}`
                   : t('ministry.na'),
                 subtitle: topCorrelation
-                  ? t('ministry.inCity', {
-                      city: topCorrelation.city || t('ministry.na'),
-                    })
+                  ? t('ministry.inCity', { city: topCorrelation.city || t('ministry.na') })
                   : '',
                 icon: <Layers className="h-5 w-5 text-primary" />,
               },
@@ -597,8 +527,9 @@ const MinistryDashboard = () => {
             ))}
           </div>
 
-          {/* Impact Audit + Civic Impact */}
+          {/* --- Impact Audit + Civic Impact Together --- */}
           <div className="p-6 space-y-8">
+            {/* Impact Audit */}
             <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
               <CardHeader>
                 <CardTitle>Impact Audit: Resolved vs Pending</CardTitle>
@@ -617,6 +548,7 @@ const MinistryDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Civic Impact Tracker (Under Audit) */}
             <Card className="bg-card/70 border border-border/30 backdrop-blur-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -660,19 +592,19 @@ const MinistryDashboard = () => {
                                 : 0
                             }%`,
                           }}
-                        />
+                        ></div>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Avg. Response:{' '}
+                        Avg. Response: {" "}
                         {row.avg_response_time
                           ? `${row.avg_response_time.toFixed(1)} hrs`
-                          : '—'}
+                          : "—"}
                       </div>
                       <div className="text-xs text-blue-400 font-medium">
-                        Engagement:{' '}
+                        Engagement: {" "}
                         {row.engagement_score
                           ? row.engagement_score.toFixed(2)
-                          : '—'}
+                          : "—"}
                       </div>
                     </div>
                   ))}
@@ -693,7 +625,7 @@ const MinistryDashboard = () => {
               <CardContent>
                 <IncidentPrioritizer
                   incidents={incidents}
-                  selectedIncident={incidents.find((i: any) => i.id === selectedIncidentId) || null}
+                  selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
                   onSelectIncident={incident => setSelectedIncidentId(incident.id)}
                   onAssignResources={() => {}}
                 />
@@ -730,23 +662,8 @@ const MinistryDashboard = () => {
                 <CrisisMap
                   incidents={incidents}
                   zones={mockZones}
-                  selectedIncident={incidents.find((i: any) => i.id === selectedIncidentId) || null}
+                  selectedIncident={incidents.find(i => i.id === selectedIncidentId) || null}
                 />
-              </CardContent>
-            </Card>
-
-            {/* Emergency Resource Dispatcher Section */}
-            <Card className="bg-card/70 border border-border/30 backdrop-blur-md mt-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Resource Dispatcher
-                  {deploymentsLoading && (
-                    <span className="text-xs text-muted-foreground ml-auto">Loading...</span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResourceDispatcher deployments={deployments} isLoading={deploymentsLoading} />
               </CardContent>
             </Card>
 
@@ -754,7 +671,7 @@ const MinistryDashboard = () => {
             <PredictedZonesViewer zones={mockZones} />
           </div>
 
-          {/* Map Section */}
+          {/* --- Map Section --- */}
           <div className="relative flex-grow p-6">
             <div className="absolute top-8 right-8 z-10">
               <Button

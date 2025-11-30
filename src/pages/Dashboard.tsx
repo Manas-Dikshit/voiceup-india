@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
 import CivicGraphExplorer from "@/components/CivicGraphExplorer";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,14 +7,8 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Globe, MapPin, Plus, Award, TrendingUp, LogOut, MessageCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast"; 
+import { useToast } from "@/hooks/use-toast";
+import { MapPin, Plus, Award, TrendingUp, LogOut, MessageCircle } from "lucide-react";
 import ProblemCard from "@/components/ProblemCard";
 import ReportProblem from "@/components/ReportProblem";
 import { useUserLocation } from "@/hooks/useUserLocation";
@@ -27,25 +21,20 @@ import { Problem } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import type { ChatbotMetadata, SuggestionPublishResponse } from "@/lib/ai-suggestions";
 
+// ==================== Types ====================
+
 interface Profile {
   id: string;
   full_name: string;
   points?: number;
   badges?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-const categories = [
-  { value: "roads", label: "Roads & Infra" },
-  { value: "water", label: "Water Supply" },
-  { value: "electricity", label: "Electricity" },
-  { value: "sanitation", label: "Sanitation & Waste" },
-  { value: "education", label: "Education" },
-  { value: "healthcare", label: "Healthcare" },
-  { value: "pollution", label: "Pollution" },
-  { value: "safety", label: "Public Safety" },
-  { value: "other", label: "Other" },
-];
+interface Category {
+  value: string;
+  label: string;
+}
 
 interface ContributionMetrics {
   reportsCount: number;
@@ -57,6 +46,81 @@ interface ImpactStats extends ContributionMetrics {
   points: number;
   badges: string[];
 }
+
+interface ImpactTrackerRow {
+  id: string;
+  category: string;
+  location: string;
+  resolved_count: number;
+  pending_count: number;
+  avg_response_time: number;
+  engagement_score: number;
+}
+
+interface MapFocus {
+  lat: number | null;
+  lng: number | null;
+  id?: string;
+  pincode?: string;
+}
+
+interface LocationCoordinates {
+  type?: string;
+  coordinates?: number[];
+}
+
+interface RawProblem {
+  id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  votes_count?: number;
+  comments_count?: number;
+  status?: string;
+  created_at?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  pincode?: string;
+  location?: string | LocationCoordinates | null;
+  [key: string]: unknown;
+}
+
+// ==================== Constants ====================
+
+const categories: Category[] = [
+  { value: "roads", label: "Roads & Infra" },
+  { value: "water", label: "Water Supply" },
+  { value: "electricity", label: "Electricity" },
+  { value: "sanitation", label: "Sanitation & Waste" },
+  { value: "education", label: "Education" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "pollution", label: "Pollution" },
+  { value: "safety", label: "Public Safety" },
+  { value: "other", label: "Other" },
+];
+
+const NEARBY_RADIUS_METERS = 50000;
+
+const DEFAULT_IMPACT_DATA: ImpactTrackerRow[] = [
+  {
+    id: "mock1",
+    category: "Water",
+    location: "Ward 12",
+    resolved_count: 3,
+    pending_count: 1,
+    avg_response_time: 4.2,
+    engagement_score: 7.5,
+  },
+  {
+    id: "mock2",
+    category: "Sanitation",
+    location: "Ward 7",
+    resolved_count: 2,
+    pending_count: 2,
+    avg_response_time: 6.1,
+    engagement_score: 5.8,
+  },
+];
 
 const BADGE_RULES = [
   {
@@ -87,20 +151,146 @@ const BADGE_RULES = [
   },
 ];
 
-const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []) => {
+// ==================== Helper Functions ====================
+
+const deriveBadges = (stats: ImpactStats, existingBadges: string[] = []): string[] => {
   const earned = BADGE_RULES
     .filter((rule) => rule.predicate(stats))
     .map((rule) => rule.label);
   return Array.from(new Set([...(existingBadges ?? []), ...earned]));
 };
 
+const parseLocationString = (loc: string): { longitude: number; latitude: number } | null => {
+  if (loc.startsWith('POINT')) {
+    const inside = loc.replace(/POINT\(|\)/g, '').trim();
+    const [lngStr, latStr] = inside.split(' ').filter(Boolean);
+    return {
+      longitude: Number(lngStr),
+      latitude: Number(latStr),
+    };
+  }
+  return null;
+};
+
+const parseLocationObject = (loc: LocationCoordinates): { longitude: number; latitude: number } | null => {
+  if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+    return {
+      longitude: Number(loc.coordinates[0]),
+      latitude: Number(loc.coordinates[1]),
+    };
+  }
+  return null;
+};
+
+const normalizeNearbyRow = (row: RawProblem): RawProblem => {
+  const out: RawProblem = { ...row };
+  out.votes_count = out.votes_count !== undefined && out.votes_count !== null
+    ? Number(out.votes_count)
+    : 0;
+
+  if ((out.latitude === null || out.latitude === undefined) && out.location) {
+    const loc = out.location;
+    if (typeof loc === 'string') {
+      const parsed = parseLocationString(loc);
+      if (parsed) {
+        out.longitude = parsed.longitude;
+        out.latitude = parsed.latitude;
+      }
+    } else if (typeof loc === 'object' && loc !== null) {
+      const parsed = parseLocationObject(loc);
+      if (parsed) {
+        out.longitude = parsed.longitude;
+        out.latitude = parsed.latitude;
+      }
+    }
+  }
+
+  return out;
+};
+
+const shouldFallbackToNearbyBoundingBox = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string; details?: string };
+  const code = (err.code ?? '').toLowerCase();
+  const text = `${err.message ?? ''} ${err.details ?? ''}`.toLowerCase();
+  return (
+    code.includes('404') ||
+    text.includes('get_nearby_problems_for_map') ||
+    text.includes('function not found') ||
+    text.includes('does not exist')
+  );
+};
+
+const fetchNearbyProblemsFallback = async (
+  latitude: number,
+  longitude: number
+): Promise<RawProblem[]> => {
+  const latDelta = NEARBY_RADIUS_METERS / 111320; // approx meters per degree latitude
+  const lonDenominator = Math.cos((latitude * Math.PI) / 180) * 111320;
+  const lonDelta = lonDenominator !== 0
+    ? NEARBY_RADIUS_METERS / Math.abs(lonDenominator)
+    : NEARBY_RADIUS_METERS / 111320;
+
+  const { data, error } = await supabase
+    .from('problems')
+    .select('*')
+    .eq('is_flagged', false)
+    .gte('latitude', latitude - latDelta)
+    .lte('latitude', latitude + latDelta)
+    .gte('longitude', longitude - lonDelta)
+    .lte('longitude', longitude + lonDelta)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+  return (data || []) as RawProblem[];
+};
+
+const normalizeProblem = (raw: RawProblem): Problem => {
+  let latitude: number | null = raw?.latitude ?? null;
+  let longitude: number | null = raw?.longitude ?? null;
+  const locationField = raw?.location;
+
+  if ((latitude === null || longitude === null) && locationField) {
+    if (typeof locationField === "string") {
+      const parsed = parseLocationString(locationField);
+      if (parsed) {
+        longitude = parsed.longitude;
+        latitude = parsed.latitude;
+      }
+    } else if (typeof locationField === "object" && locationField !== null) {
+      const parsed = parseLocationObject(locationField);
+      if (parsed) {
+        longitude = parsed.longitude;
+        latitude = parsed.latitude;
+      }
+    }
+  }
+
+  return {
+    id: raw?.id ?? `problem-${Date.now()}-${Math.random()}`,
+    title: raw?.title ?? "Untitled problem",
+    description: raw?.description ?? "",
+    category: raw?.category ?? "other",
+    votes_count: Number(raw?.votes_count ?? 0),
+    comments_count: Number(raw?.comments_count ?? 0),
+    status: raw?.status ?? "reported",
+    created_at: raw?.created_at ?? new Date().toISOString(),
+    latitude: Number.isFinite(latitude) ? Number(latitude) : null,
+    longitude: Number.isFinite(longitude) ? Number(longitude) : null,
+    pincode: raw?.pincode ?? undefined,
+  };
+};
+
+// ==================== API Functions ====================
+
 const fetchProblems = async (
   searchTerm: string,
-  selectedCategory: (typeof categories)[number]["value"] | null
-) => {
+  selectedCategory: string | null
+): Promise<RawProblem[]> => {
   let query = supabase
     .from("problems")
-    .select<any>("*")
+    .select("*")
     .eq("is_flagged", false);
 
   if (searchTerm) {
@@ -108,183 +298,113 @@ const fetchProblems = async (
   }
 
   if (selectedCategory) {
-    query = query.eq("category", selectedCategory as (typeof categories)[number]["value"]);
+    query = query.eq("category", selectedCategory);
   }
 
   const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data || [];
+  return (data || []) as RawProblem[];
 };
 
-const fetchNearbyProblems = async (latitude: number, longitude: number) => {
-  const { data, error } = await (supabase as any).rpc('get_nearby_problems_for_map', {
+const fetchNearbyProblems = async (
+  latitude: number,
+  longitude: number
+): Promise<RawProblem[]> => {
+  const { data, error } = await supabase.rpc('get_nearby_problems_for_map', {
     p_lat: latitude,
     p_lng: longitude,
-    p_radius_meters: 50000,
+    p_radius_meters: NEARBY_RADIUS_METERS
   });
-  if (error) throw new Error(error.message);
-  const rows = (data || []) as any[];
 
-  return rows.map((r) => {
-    const out: any = { ...r };
-    out.votes_count =
-      out.votes_count !== undefined && out.votes_count !== null
-        ? Number(out.votes_count)
-        : 0;
-
-    if ((out.latitude === null || out.latitude === undefined) && out.location) {
-      const loc = out.location;
-      if (loc && typeof loc === "object" && Array.isArray(loc.coordinates)) {
-        out.longitude = Number(loc.coordinates[0]);
-        out.latitude = Number(loc.coordinates[1]);
-      } else if (typeof loc === "string" && loc.startsWith("POINT")) {
-        const inside = loc.replace(/POINT\(|\)/g, "").trim();
-        const [lngStr, latStr] = inside.split(" ").filter(Boolean);
-        out.longitude = Number(lngStr);
-        out.latitude = Number(latStr);
-      }
+  if (error) {
+    if (shouldFallbackToNearbyBoundingBox(error)) {
+      console.warn('[Dashboard] Nearby problems RPC missing, using fallback query');
+      const fallbackRows = await fetchNearbyProblemsFallback(latitude, longitude);
+      return fallbackRows.map(normalizeNearbyRow);
     }
+    throw new Error(error.message);
+  }
 
-    return out;
-  });
+  const rows = (data || []) as RawProblem[];
+  return rows.map(normalizeNearbyRow);
 };
 
+// ==================== Component ====================
+
 const Dashboard = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const DEFAULT_MAP_CENTER_LAT = Number(import.meta.env.VITE_DEFAULT_MAP_LAT ?? 20.2960);
   const DEFAULT_MAP_CENTER_LNG = Number(import.meta.env.VITE_DEFAULT_MAP_LNG ?? 85.8246);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // State
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReportForm, setShowReportForm] = useState(false);
-  const { position, error: locationError, loading: locationLoading } = useUserLocation();
   const [activeTab, setActiveTab] = useState("all");
-  const insightsRef = useRef<HTMLDivElement | null>(null);
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [mapFocus, setMapFocus] = useState<{
-    lat: number | null;
-    lng: number | null;
-    id?: string;
-    pincode?: string;
-  } | null>(null);
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   const [impactStats, setImpactStats] = useState<ImpactStats | null>(null);
-  const [impactTracker, setImpactTracker] = useState<any[]>([]);
+  const [impactTracker, setImpactTracker] = useState<ImpactTrackerRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<(typeof categories)[number]["value"] | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const queryClient = useQueryClient();
+  // Refs
+  const insightsRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const fetchImpactTracker = async () => {
-      try {
-        // Replace with actual API when available
-        setImpactTracker([
-          {
-            id: "mock1",
-            category: "Water",
-            location: "Ward 12",
-            resolved_count: 3,
-            pending_count: 1,
-            avg_response_time: 4.2,
-            engagement_score: 7.5,
-          },
-          {
-            id: "mock2",
-            category: "Sanitation",
-            location: "Ward 7",
-            resolved_count: 2,
-            pending_count: 2,
-            avg_response_time: 6.1,
-            engagement_score: 5.8,
-          },
-        ]);
-      } catch {
-        setImpactTracker([]);
-      }
-    };
-    fetchImpactTracker();
-  }, []);
+  // Hooks
+  const { position, error: locationError } = useUserLocation();
 
-  const normalizeProblem = (raw: any): Problem => {
-    let latitude: number | null = raw?.latitude ?? null;
-    let longitude: number | null = raw?.longitude ?? null;
-    const locationField = raw?.location;
-
-    if ((latitude === null || longitude === null) && locationField) {
-      if (typeof locationField === "string" && locationField.startsWith("POINT")) {
-        const inside = locationField.replace(/POINT\(|\)/g, "").trim();
-        const [lngStr, latStr] = inside.split(" ").filter(Boolean);
-        longitude = Number(lngStr);
-        latitude = Number(latStr);
-      } else if (typeof locationField === "object" && Array.isArray(locationField.coordinates)) {
-        longitude = Number(locationField.coordinates[0]);
-        latitude = Number(locationField.coordinates[1]);
-      }
-    }
-
-    return {
-      id: raw?.id ?? `problem-${Date.now()}-${Math.random()}`,
-      title: raw?.title ?? t("problem.untitled"),
-      description: raw?.description ?? "",
-      category: raw?.category ?? "other",
-      votes_count: Number(raw?.votes_count ?? 0),
-      comments_count: Number(raw?.comments_count ?? 0),
-      status: raw?.status ?? "reported",
-      created_at: raw?.created_at ?? new Date().toISOString(),
-      latitude: Number.isFinite(latitude) ? Number(latitude) : null,
-      longitude: Number.isFinite(longitude) ? Number(longitude) : null,
-      pincode: raw?.pincode ?? undefined,
-    };
-  };
-
+  // Queries
   const { data: problems, isLoading: problemsLoading } = useQuery({
     queryKey: ["problems", searchTerm, selectedCategory],
     queryFn: () => fetchProblems(searchTerm, selectedCategory),
   });
 
   const { data: nearbyProblems = [], isLoading: nearbyProblemsLoading } = useQuery({
-    queryKey: ["nearbyProblems", position?.latitude, position?.longitude],
+    queryKey: ['nearbyProblems', position?.latitude, position?.longitude],
     queryFn: () => fetchNearbyProblems(position!.latitude, position!.longitude),
     enabled: !!position,
   });
 
   const { data: totalProblemsCount = 0 } = useQuery({
-    queryKey: ["problemCount"],
+    queryKey: ['problemCount'],
     queryFn: async () => {
       const { count, error } = await supabase
-        .from("problems")
-        .select("id", { count: "exact", head: true });
+        .from('problems')
+        .select('id', { count: 'exact', head: true });
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
   });
 
   const { data: userVotes = {} } = useQuery({
-    queryKey: ["userVotes", profile?.id],
+    queryKey: ['userVotes', profile?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("votes")
-        .select("votable_id, vote_type")
-        .eq("user_id", profile!.id)
-        .eq("votable_type", "problem");
+        .from('votes')
+        .select('votable_id, vote_type')
+        .eq('user_id', profile!.id)
+        .eq('votable_type', 'problem');
       if (error) throw new Error(error.message);
       return (data || []).reduce((acc, row) => {
-        acc[row.votable_id as string] = row.vote_type as "upvote" | "downvote";
+        acc[row.votable_id as string] = row.vote_type as 'upvote' | 'downvote';
         return acc;
-      }, {} as Record<string, "upvote" | "downvote">);
+      }, {} as Record<string, 'upvote' | 'downvote'>);
     },
     enabled: !!profile?.id,
     staleTime: 1000 * 30,
   });
 
   const { data: voteTotals = {} } = useQuery({
-    queryKey: ["problemVoteTotals"],
+    queryKey: ['problemVoteTotals'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("problem_vote_totals")
-        .select("problem_id, net_votes");
+        .from('problem_vote_totals')
+        .select('problem_id, net_votes');
       if (error) throw new Error(error.message);
       return (data || []).reduce((acc, row) => {
         if (row.problem_id) {
@@ -296,89 +416,8 @@ const Dashboard = () => {
     staleTime: 1000 * 15,
   });
 
-  useEffect(() => {
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-
-    const problemsChannel = supabase
-      .channel("problems-feed")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "problems" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["problems"] });
-          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
-          queryClient.invalidateQueries({ queryKey: ["problemCount"] });
-          if (profile?.id) {
-            queryClient.invalidateQueries({ queryKey: ["userVotes", profile.id] });
-          }
-        }
-      )
-      .subscribe();
-
-    const votesChannel = supabase
-      .channel("votes-feed")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["problems"] });
-          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
-          queryClient.invalidateQueries({ queryKey: ["problemCount"] });
-          queryClient.invalidateQueries({ queryKey: ["problemVoteTotals"] });
-          if (profile?.id) {
-            queryClient.invalidateQueries({ queryKey: ["userVotes", profile.id] });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(problemsChannel);
-      supabase.removeChannel(votesChannel);
-    };
-  }, [queryClient, profile?.id]);
-
-  useEffect(() => {
-    if (activeTab !== "insights") return;
-    if (!insightsRef.current) return;
-
-    try {
-      insightsRef.current.scrollIntoView({ behavior: "auto", block: "center" });
-      window.setTimeout(() => {
-        window.scrollBy({ top: -(window.innerHeight * 0.25), behavior: "smooth" });
-      }, 50);
-    } catch {
-      try {
-        insightsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      } catch {
-        insightsRef.current.scrollIntoView();
-      }
-    }
-  }, [activeTab, mapFocus]);
-
-  const checkAuth = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-
-    const loadedProfile = await loadProfile(session.user.id);
-    if (loadedProfile) {
-      await loadImpactStats(loadedProfile.id, loadedProfile.badges ?? []);
-    }
-    setLoading(false);
-  };
-
-  const loadProfile = async (userId: string) => {
+  // Callbacks
+  const loadProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -390,33 +429,24 @@ const Dashboard = () => {
       return null;
     }
 
-    const profileData = data as Partial<Profile> & Record<string, any>;
+    const profileData = data as Record<string, unknown>;
     const normalizedProfile: Profile = {
       id: (profileData.id ?? profileData.user_id ?? "") as string,
       full_name: (profileData.full_name ?? profileData.username ?? "Citizen") as string,
-      points: profileData.points ?? 0,
-      badges: Array.isArray(profileData.badges) ? profileData.badges : [],
+      points: (profileData.points as number) ?? 0,
+      badges: Array.isArray(profileData.badges) ? profileData.badges as string[] : [],
       ...profileData,
     };
     setProfile(normalizedProfile);
     return normalizedProfile;
-  };
+  }, []);
 
-  const loadImpactStats = async (userId: string, existingBadges: string[] = []) => {
+  const loadImpactStats = useCallback(async (userId: string, existingBadges: string[] = []) => {
     try {
       const [reported, commented, voted] = await Promise.all([
-        supabase
-          .from("problems")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId),
-        supabase
-          .from("comments")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId),
-        supabase
-          .from("votes")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId),
+        supabase.from('problems').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('comments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('votes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       ]);
 
       if (reported.error) throw reported.error;
@@ -435,37 +465,49 @@ const Dashboard = () => {
 
       setImpactStats({ reportsCount, commentsCount, votesCount, points, badges });
     } catch (error) {
-      console.error("Error loading citizen impact stats:", error);
-      setImpactStats((prev) =>
-        prev ??
-        ({
-          reportsCount: 0,
-          commentsCount: 0,
-          votesCount: 0,
-          points: profile?.points ?? 0,
-          badges: existingBadges,
-        } as ImpactStats)
-      );
+      console.error('Error loading citizen impact stats:', error);
+      setImpactStats((prev) => prev ?? {
+        reportsCount: 0,
+        commentsCount: 0,
+        votesCount: 0,
+        points: profile?.points ?? 0,
+        badges: existingBadges,
+      });
     }
-  };
+  }, [profile?.points]);
+
+  const checkAuth = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    const loadedProfile = await loadProfile(session.user.id);
+    if (loadedProfile) {
+      await loadImpactStats(loadedProfile.id, loadedProfile.badges ?? []);
+    }
+    setLoading(false);
+  }, [navigate, loadProfile, loadImpactStats]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     toast({
-      title: t("dashboard.signedOutTitle"),
-      description: t("dashboard.signedOutDesc"),
+      title: t('dashboard.signedOutTitle'),
+      description: t('dashboard.signedOutDesc'),
     });
     navigate("/");
   };
 
   const handleSuccess = () => {
     setShowReportForm(false);
-    queryClient.invalidateQueries({ queryKey: ["problems"] });
-    queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
-    queryClient.invalidateQueries({ queryKey: ["problemCount"] });
-    queryClient.invalidateQueries({ queryKey: ["problemVoteTotals"] });
+    queryClient.invalidateQueries({ queryKey: ['problems'] });
+    queryClient.invalidateQueries({ queryKey: ['nearbyProblems'] });
+    queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+    queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
     if (profile?.id) {
-      queryClient.invalidateQueries({ queryKey: ["userVotes", profile.id] });
+      queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
       loadImpactStats(profile.id, impactStats?.badges ?? profile.badges ?? []);
     }
   };
@@ -477,7 +519,7 @@ const Dashboard = () => {
     return uuidMatch ? uuidMatch[0] : undefined;
   };
 
-  const handleBotSendMessage = async (message: string, currentHistory: Message[]) => {
+  const handleBotSendMessage = async (message: string, _currentHistory: Message[]) => {
     try {
       const problemId = extractProblemId(message);
       const { data, error } = await supabase.functions.invoke<{
@@ -518,79 +560,203 @@ const Dashboard = () => {
       throw new Error("User not authenticated");
     }
 
-    const { data, error } =
-      await supabase.functions.invoke<SuggestionPublishResponse>("suggestions-publish", {
+    const { data, error } = await supabase.functions.invoke<SuggestionPublishResponse>(
+      "suggestions-publish",
+      {
         body: {
           problemId,
           suggestionIndex,
           publishedBy: profile.id,
         },
-      });
+      }
+    );
 
     if (error || !data?.success) {
-      const message =
-        error?.message || data?.error || "Unable to publish AI suggestion.";
-      toast({
-        title: "Publish failed",
-        description: message,
-        variant: "destructive",
-      });
+      const message = error?.message || data?.error || "Unable to publish AI suggestion.";
+      toast({ title: "Publish failed", description: message, variant: "destructive" });
       throw new Error(message);
     }
 
     toast({
       title: "Suggestion published",
-      description:
-        "The AI recommendation has been added to the issue suggestions queue.",
+      description: "The AI recommendation has been added to the issue suggestions queue.",
     });
   };
 
+  const handleShowOnMap = useCallback((p: Problem) => {
+    setMapFocus({
+      lat: p.latitude ?? DEFAULT_MAP_CENTER_LAT,
+      lng: p.longitude ?? DEFAULT_MAP_CENTER_LNG,
+      id: p.id,
+      pincode: p.pincode,
+    });
+    setActiveTab('insights');
+  }, [DEFAULT_MAP_CENTER_LAT, DEFAULT_MAP_CENTER_LNG]);
+
+  // Effects
+  useEffect(() => {
+    const fetchImpactTracker = async () => {
+      try {
+        // Replace with actual API call if available
+        // const { data, error } = await supabase.from('impact_tracker').select('*');
+        // if (error) throw error;
+        // setImpactTracker(data ?? []);
+        setImpactTracker(DEFAULT_IMPACT_DATA);
+      } catch (error) {
+        console.error("Error fetching impact tracker:", error);
+        setImpactTracker([]);
+      }
+    };
+    fetchImpactTracker();
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const problemsChannel = supabase
+      .channel("problems-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "problems" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["problems"] });
+          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
+        }
+      )
+      .subscribe();
+
+    const votesChannel = supabase
+      .channel("votes-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["problems"] });
+          queryClient.invalidateQueries({ queryKey: ["nearbyProblems"] });
+          queryClient.invalidateQueries({ queryKey: ['problemCount'] });
+          queryClient.invalidateQueries({ queryKey: ['problemVoteTotals'] });
+          if (profile?.id) {
+            queryClient.invalidateQueries({ queryKey: ['userVotes', profile.id] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(problemsChannel);
+      supabase.removeChannel(votesChannel);
+    };
+  }, [queryClient, profile?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'insights' || !insightsRef.current) return;
+
+    try {
+      insightsRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
+      window.setTimeout(() => {
+        window.scrollBy({ top: -(window.innerHeight * 0.25), behavior: 'smooth' });
+      }, 50);
+    } catch {
+      try {
+        insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch {
+        insightsRef.current?.scrollIntoView();
+      }
+    }
+  }, [activeTab, mapFocus]);
+
+  // Render helpers
+  const renderProblemCard = (raw: RawProblem) => {
+    const normalized = normalizeProblem(raw);
+    const problem: Problem = {
+      ...normalized,
+      votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+      user_vote: userVotes?.[normalized.id] ?? null,
+    };
+    return (
+      <ProblemCard
+        key={problem.id}
+        problem={problem}
+        currentUserId={profile?.id}
+        onShowOnMap={handleShowOnMap}
+      />
+    );
+  };
+
+  const renderImpactTrackerCard = (row: ImpactTrackerRow) => {
+    const total = row.resolved_count + row.pending_count;
+    const progressWidth = total > 0 ? (row.resolved_count / total) * 100 : 0;
+
+    return (
+      <div key={row.id} className="mb-4">
+        <div className="font-semibold text-sm mb-1">
+          {row.category} ({row.location})
+        </div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs text-success">Resolved: {row.resolved_count}</span>
+          <span className="text-xs text-warning">Pending: {row.pending_count}</span>
+        </div>
+        <div className="w-full bg-muted rounded h-3 mb-1">
+          <div
+            className="bg-primary h-3 rounded"
+            style={{ width: `${progressWidth}%` }}
+          />
+        </div>
+        <div className="text-xs text-muted-foreground mb-1">
+          Avg. Response Time: {row.avg_response_time?.toFixed(1) ?? "—"} hrs
+        </div>
+        <div className="text-xs text-info">
+          Engagement Score: {row.engagement_score?.toFixed(2) ?? "—"}
+        </div>
+      </div>
+    );
+  };
+
+  // Loading state
   if (loading || problemsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{t("dashboard.loading")}</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">{t('dashboard.loading')}</p>
         </div>
       </div>
     );
   }
 
+  // Computed values
   const pointsDisplay = impactStats?.points ?? profile?.points ?? 0;
-  const badgesDisplay =
-    (impactStats?.badges?.length ? impactStats.badges : profile?.badges) ?? [];
-  const activeProblemsCount = position
-    ? nearbyProblemsLoading && !locationError
-      ? null
-      : nearbyProblems.length
-    : totalProblemsCount ?? (Array.isArray(problems) ? problems.length : 0);
-  const activeProblemsLabel = position
-    ? t("dashboard.inYourArea")
-    : t("dashboard.acrossVoiceUp");
+  const badgesDisplay = (impactStats?.badges?.length ? impactStats.badges : profile?.badges) ?? [];
+  const impactData = impactTracker.length > 0 ? impactTracker : DEFAULT_IMPACT_DATA;
+  const resolvedProblems = impactData.filter((row) => row.resolved_count > 0);
+  const problemsList = Array.isArray(problems) ? problems : [];
 
-  const impactData =
-    Array.isArray(impactTracker) && impactTracker.length > 0
-      ? impactTracker
-      : [
-          {
-            id: "mock1",
-            category: "Water",
-            location: "Ward 12",
-            resolved_count: 3,
-            pending_count: 1,
-            avg_response_time: 4.2,
-            engagement_score: 7.5,
-          },
-          {
-            id: "mock2",
-            category: "Sanitation",
-            location: "Ward 7",
-            resolved_count: 2,
-            pending_count: 2,
-            avg_response_time: 6.1,
-            engagement_score: 5.8,
-          },
-        ];
+  const activeProblemsCount = position
+    ? (nearbyProblemsLoading && !locationError ? null : nearbyProblems.length)
+    : totalProblemsCount ?? problemsList.length;
+  const activeProblemsLabel = position
+    ? t('dashboard.inYourArea')
+    : t('dashboard.acrossVoiceUp');
+
+  const trendingProblems = problemsList
+    .map((raw) => {
+      const normalized = normalizeProblem(raw);
+      return {
+        ...normalized,
+        votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
+        user_vote: userVotes?.[normalized.id] ?? null,
+      };
+    })
+    .sort((a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0))
+    .slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -598,38 +764,16 @@ const Dashboard = () => {
         right={
           <>
             <div className="text-right">
-              <p className="text-sm font-medium text-foreground">
-                {profile?.full_name}
-              </p>
+              <p className="text-sm font-medium text-foreground">{profile?.full_name}</p>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Award className="h-3 w-3" />
-                <span>
-                  {pointsDisplay} {t("dashboard.points")}
-                </span>
+                <span>{pointsDisplay} {t('dashboard.points')}</span>
               </div>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Globe className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("en")}>
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("hi")}>
-                  हिंदी (Hindi)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => i18n.changeLanguage("od")}>
-                  ଓଡ଼ିଆ (Odia)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <NotificationBell />
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="h-4 w-4 mr-2" />
-              {t("buttons.signOut")}
+              {t('buttons.signOut')}
             </Button>
           </>
         }
@@ -644,67 +788,25 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {impactData.map((row: any) => (
-                  <div key={row.id} className="mb-4">
-                    <div className="font-semibold text-sm mb-1">
-                      {row.category} ({row.location})
-                    </div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs text-success">
-                        Resolved: {row.resolved_count}
-                      </span>
-                      <span className="text-xs text-warning">
-                        Pending: {row.pending_count}
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded h-3 mb-1">
-                      <div
-                        className="bg-primary h-3 rounded"
-                        style={{
-                          width: `${
-                            row.resolved_count + row.pending_count > 0
-                              ? (row.resolved_count /
-                                  (row.resolved_count + row.pending_count)) *
-                                100
-                              : 0
-                          }%`,
-                        }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Avg. Response Time:{" "}
-                      {row.avg_response_time
-                        ? row.avg_response_time.toFixed(1)
-                        : "—"}{" "}
-                      hrs
-                    </div>
-                    <div className="text-xs text-info">
-                      Engagement Score:{" "}
-                      {row.engagement_score
-                        ? row.engagement_score.toFixed(2)
-                        : "—"}
-                    </div>
-                  </div>
-                ))}
+                {impactData.map(renderImpactTrackerCard)}
               </div>
             </CardContent>
           </Card>
 
+          {/* Recent Resolved Problems */}
           <Card>
             <CardHeader>
               <CardTitle>Recently Resolved Problems</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="list-disc pl-4">
-                {impactData
-                  .filter((row: any) => row.resolved_count > 0)
-                  .map((row: any) => (
+                {resolvedProblems.length > 0 ? (
+                  resolvedProblems.map((row) => (
                     <li key={row.id} className="text-sm mb-1">
-                      {row.category} in {row.location} ({row.resolved_count}{" "}
-                      resolved)
+                      {row.category} in {row.location} ({row.resolved_count} resolved)
                     </li>
-                  ))}
-                {impactData.every((row: any) => row.resolved_count === 0) && (
+                  ))
+                ) : (
                   <li className="text-muted-foreground text-sm">
                     No problems resolved yet.
                   </li>
@@ -714,19 +816,19 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Impact summary cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-primary/10 to-background/80">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" />
-                {t("dashboard.yourImpact")}
+                {t('dashboard.yourImpact')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{pointsDisplay}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t("dashboard.pointsSubtitle")}
+                {t('dashboard.pointsSubtitle')}
               </p>
             </CardContent>
           </Card>
@@ -735,13 +837,13 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Award className="h-4 w-4 text-secondary" />
-                {t("dashboard.badgesEarned")}
+                {t('dashboard.badgesEarned')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{badgesDisplay.length}</div>
               <div className="flex flex-wrap gap-2 mt-2">
-                {badgesDisplay.map((badge: string, i: number) => (
+                {badgesDisplay.map((badge, i) => (
                   <span
                     key={i}
                     className="px-2 py-1 rounded bg-muted text-xs text-muted-foreground border border-border"
@@ -751,7 +853,7 @@ const Dashboard = () => {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {t("dashboard.unlockAchievements")}
+                {t('dashboard.unlockAchievements')}
               </p>
             </CardContent>
           </Card>
@@ -760,16 +862,12 @@ const Dashboard = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-info" />
-                {t("dashboard.activeProblems")}
+                {t('dashboard.activeProblems')}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {activeProblemsCount ?? "—"}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {activeProblemsLabel}
-              </p>
+              <div className="text-2xl font-bold">{activeProblemsCount ?? '—'}</div>
+              <p className="text-xs text-muted-foreground mt-1">{activeProblemsLabel}</p>
             </CardContent>
           </Card>
         </div>
@@ -783,7 +881,7 @@ const Dashboard = () => {
             variant="glass-primary"
           >
             <Plus className="h-5 w-5 mr-2" />
-            {t("dashboard.reportProblem")}
+            {t('dashboard.reportProblem')}
           </Button>
         </div>
 
@@ -807,9 +905,7 @@ const Dashboard = () => {
             {categories.map((category) => (
               <Button
                 key={category.value}
-                variant={
-                  selectedCategory === category.value ? "default" : "outline"
-                }
+                variant={selectedCategory === category.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(category.value)}
               >
@@ -820,32 +916,20 @@ const Dashboard = () => {
         </div>
 
         {/* Problems List */}
-        <Tabs
-          value={activeTab}
-          onValueChange={(v: string) => setActiveTab(v)}
-          className="w-full"
-        >
+        <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v)} className="w-full">
           <TabsList>
-            <TabsTrigger value="all">
-              {t("dashboard.tabs.allProblems")}
-            </TabsTrigger>
-            <TabsTrigger value="nearby">
-              {t("dashboard.tabs.nearby")}
-            </TabsTrigger>
-            <TabsTrigger value="trending">
-              {t("dashboard.tabs.trending")}
-            </TabsTrigger>
-            <TabsTrigger value="insights">
-              {t("dashboard.tabs.insights")}
-            </TabsTrigger>
+            <TabsTrigger value="all">{t('dashboard.tabs.allProblems')}</TabsTrigger>
+            <TabsTrigger value="nearby">{t('dashboard.tabs.nearby')}</TabsTrigger>
+            <TabsTrigger value="trending">{t('dashboard.tabs.trending')}</TabsTrigger>
+            <TabsTrigger value="insights">{t('dashboard.tabs.insights')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-6">
             <div className="space-y-4">
-              {(Array.isArray(problems) ? problems : []).length === 0 ? (
+              {problemsList.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    {t("dashboard.noProblemsYet")}
+                    {t('dashboard.noProblemsYet')}
                   </CardContent>
                 </Card>
               ) : (
@@ -853,10 +937,7 @@ const Dashboard = () => {
                   const normalized = normalizeProblem(raw);
                   const problem: Problem = {
                     ...normalized,
-                    votes_count:
-                      voteTotals?.[normalized.id] ??
-                      normalized.votes_count ??
-                      0,
+                    votes_count: voteTotals?.[normalized.id] ?? normalized.votes_count ?? 0,
                     user_vote: userVotes?.[normalized.id] ?? null,
                   };
                   return (
@@ -865,14 +946,9 @@ const Dashboard = () => {
                       problem={problem}
                       currentUserId={profile?.id}
                       onShowOnMap={(p: Problem) => {
-                        setMapFocus({
-                          lat: DEFAULT_MAP_CENTER_LAT,
-                          lng: DEFAULT_MAP_CENTER_LNG,
-                          id: p.id,
-                          pincode: (p as any).pincode,
-                        });
-                        setActiveTab("insights");
-                      }}
+                          setMapFocus({ lat: DEFAULT_MAP_CENTER_LAT, lng: DEFAULT_MAP_CENTER_LNG, id: p.id, pincode: (p as any).pincode });
+                          setActiveTab('insights');
+                        }}
                     />
                   );
                 })
@@ -884,100 +960,48 @@ const Dashboard = () => {
             {locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {t("dashboard.locationError")}
+                  {t('dashboard.locationError')}
                 </CardContent>
               </Card>
             )}
             {!position && !locationError && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {t("dashboard.gettingLocation")}
+                  {t('dashboard.gettingLocation')}
                 </CardContent>
               </Card>
             )}
-            {position &&
-              nearbyProblems.length === 0 &&
-              !nearbyProblemsLoading && (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    {t("dashboard.noNearbyProblems")}
-                  </CardContent>
-                </Card>
-              )}
+            {position && nearbyProblems.length === 0 && !nearbyProblemsLoading && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {t('dashboard.noNearbyProblems')}
+                </CardContent>
+              </Card>
+            )}
             {nearbyProblemsLoading && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {t("dashboard.loadingNearby")}
+                  {t('dashboard.loadingNearby')}
                 </CardContent>
               </Card>
             )}
             {position && nearbyProblems.length > 0 && (
               <div className="space-y-4">
-                {nearbyProblems.map((raw: any) => {
-                  const normalized = normalizeProblem(raw);
-                  const problem: Problem = {
-                    ...normalized,
-                    votes_count:
-                      voteTotals?.[normalized.id] ??
-                      normalized.votes_count ??
-                      0,
-                    user_vote: userVotes?.[normalized.id] ?? null,
-                  };
-                  return (
-                    <ProblemCard
-                      key={problem.id}
-                      problem={problem}
-                      currentUserId={profile?.id}
-                      onShowOnMap={(p: Problem) => {
-                        setMapFocus({
-                          lat: DEFAULT_MAP_CENTER_LAT,
-                          lng: DEFAULT_MAP_CENTER_LNG,
-                          id: p.id,
-                          pincode: (p as any).pincode,
-                        });
-                        setActiveTab("insights");
-                      }}
-                    />
-                  );
-                })}
+                {nearbyProblems.map(renderProblemCard)}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="trending" className="mt-6">
             <div className="space-y-4">
-              {(Array.isArray(problems) ? problems : [])
-                .map((raw: any) => {
-                  const normalized = normalizeProblem(raw);
-                  return {
-                    ...normalized,
-                    votes_count:
-                      voteTotals?.[normalized.id] ??
-                      normalized.votes_count ??
-                      0,
-                    user_vote: userVotes?.[normalized.id] ?? null,
-                  };
-                })
-                .sort(
-                  (a, b) => (b.votes_count ?? 0) - (a.votes_count ?? 0)
-                )
-                .slice(0, 5)
-                .map((problem) => (
-                  <ProblemCard
-                    key={problem.id}
-                    problem={problem as Problem}
-                    currentUserId={profile?.id}
-                    onShowOnMap={(p: Problem) => {
-                      setMapFocus({
-                        lat: DEFAULT_MAP_CENTER_LAT,
-                        lng: DEFAULT_MAP_CENTER_LNG,
-                        id: p.id,
-                        pincode: (p as any).pincode,
-                      });
-                      setActiveTab("insights");
-                    }}
-                  />
-                ))}
+              {trendingProblems.map((problem) => (
+                <ProblemCard
+                  key={problem.id}
+                  problem={problem}
+                  currentUserId={profile?.id}
+                  onShowOnMap={handleShowOnMap}
+                />
+              ))}
             </div>
           </TabsContent>
 
@@ -985,28 +1009,20 @@ const Dashboard = () => {
             <div
               ref={insightsRef}
               style={
-                activeTab === "insights"
-                  ? {
-                      minHeight: "calc(100vh - 120px)",
-                      display: "flex",
-                      alignItems: "stretch",
-                    }
+                activeTab === 'insights'
+                  ? { minHeight: 'calc(100vh - 120px)', display: 'flex', alignItems: 'stretch' }
                   : undefined
               }
             >
-              <Card
-                className={
-                  activeTab === "insights" ? "w-full flex flex-col" : ""
-                }
-              >
+              <Card className={activeTab === 'insights' ? 'w-full flex flex-col' : ''}>
                 <CardHeader>
                   <CardTitle>Geospatial Problem Correlations</CardTitle>
                 </CardHeader>
                 <CardContent
                   className="p-0"
                   style={
-                    activeTab === "insights"
-                      ? { height: "calc(100vh - 200px)", padding: 0 }
+                    activeTab === 'insights'
+                      ? { height: 'calc(100vh - 200px)', padding: 0 }
                       : undefined
                   }
                 >
@@ -1026,6 +1042,17 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="graph" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Civic Knowledge Graph</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CivicGraphExplorer />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
@@ -1059,12 +1086,6 @@ const Dashboard = () => {
           </div>
         </DrawerContent>
       </Drawer>
-
-      {/* Civic Knowledge Graph Explorer for users */}
-      <div className="mt-6 sm:mt-8 px-2 sm:px-0">
-        <h2 className="text-xl font-bold mb-4">Civic Knowledge Graph</h2>
-        <CivicGraphExplorer />
-      </div>
     </div>
   );
 };
