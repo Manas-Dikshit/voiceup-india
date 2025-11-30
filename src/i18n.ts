@@ -1,21 +1,15 @@
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
 
-import translationEN from "./locales/en/translation.json";
-import translationHI from "./locales/hi/translation.json";
-import translationOD from "./locales/od/translation.json";
+import en from './locales/en/translation.json';
+import hi from './locales/hi/translation.json';
+import od from './locales/od/translation.json';
 
 const resources = {
-  en: {
-    translation: translationEN,
-  },
-  hi: {
-    translation: translationHI,
-  },
-  od: {
-    translation: translationOD,
-  },
+  en: { translation: en },
+  hi: { translation: hi },
+  od: { translation: od },
 };
 
 i18n
@@ -23,9 +17,17 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: "en",
+    fallbackLng: 'en',
+    debug: false,
     interpolation: {
       escapeValue: false, // React already safes from xss
+    },
+    detection: {
+      order: ['localStorage', 'navigator', 'htmlTag', 'path', 'subdomain'],
+      caches: ['localStorage'],
+    },
+    react: {
+      useSuspense: false,
     },
   });
 

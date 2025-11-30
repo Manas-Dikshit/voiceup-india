@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
-import { useTranslation } from 'react-i18next';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +47,6 @@ const fadeInUp = {
 };
 
 const Index = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalProblems: 0,
@@ -132,7 +130,7 @@ const Index = () => {
             custom={1}
             className="text-5xl md:text-7xl font-extrabold mb-4 text-sky-100"
           >
-            {t('landing.title')}
+            VoiceUp
           </motion.h1>
 
           <motion.p
@@ -140,7 +138,7 @@ const Index = () => {
             custom={2}
             className="text-xl md:text-2xl text-sky-200 max-w-2xl mx-auto mb-6"
           >
-            {t('landing.subtitle')}
+            Empowering Citizens Through Digital Participation
           </motion.p>
 
           <motion.p
@@ -148,7 +146,7 @@ const Index = () => {
             custom={3}
             className="text-lg text-sky-300 max-w-3xl mx-auto mb-8"
           >
-            {t('landing.blurb')}
+            Report problems, propose solutions, vote on priorities, and track progress.
           </motion.p>
 
           <motion.div
@@ -161,7 +159,7 @@ const Index = () => {
               className="bg-sky-200 text-sky-900 hover:bg-sky-100 px-8 rounded-full shadow-lg hover:scale-110 transition"
               onClick={() => navigate("/auth")}
             >
-              {t('landing.getStarted')} <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
 
             <Button
@@ -170,7 +168,7 @@ const Index = () => {
               className="border-2 border-sky-300 text-sky-200 hover:bg-sky-300/10 px-8 rounded-full hover:scale-105 transition"
               onClick={() => navigate("/dashboard")}
             >
-              {t('landing.viewProblems')}
+              View Problems
             </Button>
           </motion.div>
         </section>
@@ -185,17 +183,17 @@ const Index = () => {
             {
               icon: <TrendingUp className="h-12 w-12 text-sky-300" />,
               value: stats.totalProblems,
-              labelKey: 'landing.stats.problems',
+              label: "Problems Reported",
             },
             {
               icon: <CheckCircle className="h-12 w-12 text-green-300" />,
               value: stats.totalSolutions,
-              labelKey: 'landing.stats.solutions',
+              label: "Solutions Proposed",
             },
             {
               icon: <Users className="h-12 w-12 text-blue-300" />,
               value: stats.activeUsers,
-              labelKey: 'landing.stats.activeUsers',
+              label: "Active Citizens",
             },
           ].map((item, i) => (
             <motion.div
@@ -211,7 +209,7 @@ const Index = () => {
                   <div className="text-4xl font-bold text-purple-100 mb-2">
                     {item.value.toLocaleString()}
                   </div>
-                  <div className="text-sky-300 font-medium">{t(item.labelKey)}</div>
+                  <div className="text-sky-300 font-medium">{item.label}</div>
                 </CardContent>
               </Card>
             </motion.div>
