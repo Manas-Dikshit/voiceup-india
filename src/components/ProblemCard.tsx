@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useTranslation } from 'react-i18next';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -22,6 +22,9 @@ import { useVote } from "@/hooks/useVote";
 import { Problem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const AI_FUNCTION_URL =
+  "https://wfpxknccdypiwpsoyisx.supabase.co/functions/v1/generate_solutions";
+
 interface ProblemCardProps {
   problem: Problem;
   currentUserId?: string | null;
@@ -33,98 +36,108 @@ interface AISolution {
 }
 
 interface AISolutionsResponse {
-  suggestions: AISolution[];
-  cached: boolean;
+  suggestions?: AISolution[];
+  cached?: boolean;
 }
 
-interface UseAISolutionsReturn {
+interface UseAISolutionsState {
   loading: boolean;
   suggestions: AISolution[];
   cached: boolean;
-  error: string | null;
   regenerate: () => void;
+  error: string | null;
 }
 
-const useAISolutions = (problemId: string): UseAISolutionsReturn => {
-  const [loading, setLoading] = useState<boolean>(false);
+const useAISolutions = (problemId: string): UseAISolutionsState => {
+  const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<AISolution[]>([]);
-  const [cached, setCached] = useState<boolean>(false);
+  const [cached, setCached] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSolutions = async (ignoreCache: boolean = false): Promise<void> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        "https://wfpxknccdypiwpsoyisx.supabase.co/functions/v1/generate_solutions",
-        {
+  const fetchSolutions = useCallback(
+    async ({ bustCache }: { bustCache: boolean }) => {
+      if (!problemId) {
+        setSuggestions([]);
+        setCached(false);
+        setError(null);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(AI_FUNCTION_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             problemId,
-            ignoreCache,
+            ignoreCache: bustCache,
           }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const json = (await response.json()) as AISolutionsResponse;
+        const safeSuggestions = Array.isArray(json?.suggestions)
+          ? json.suggestions.filter(
+              (entry): entry is AISolution =>
+                entry !== null &&
+                typeof entry === "object" &&
+                typeof entry.text === "string" &&
+                entry.text.trim().length > 0,
+            )
+          : [];
+
+        setSuggestions(safeSuggestions);
+        setCached(Boolean(json?.cached));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to fetch solutions";
+        setError(message);
+        setSuggestions([]);
+        setCached(false);
+        console.warn(`[AI Solutions] problemId=${problemId} error:`, err);
+      } finally {
+        setLoading(false);
       }
+    },
+    [problemId],
+  );
 
-      const data: AISolutionsResponse = await response.json();
-      setSuggestions(data.suggestions ?? []);
-      setCached(data.cached ?? false);
-    } catch (err) {
-      const message: string =
-        err instanceof Error ? err.message : "Failed to fetch solutions";
-      setError(message);
-      console.warn(`[AI Solutions] Error for problem ${problemId}:`, message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const regenerate = useCallback(() => {
+    fetchSolutions({ bustCache: true }).catch(() => {
+      /* handled above */
+    });
+  }, [fetchSolutions]);
 
   useEffect(() => {
-    if (problemId) {
-      fetchSolutions();
-    }
-  }, [problemId]);
+    fetchSolutions({ bustCache: false }).catch(() => {
+      /* handled above */
+    });
+  }, [fetchSolutions]);
 
-  const regenerate = (): void => {
-    fetchSolutions(true);
-  };
-
-  return { loading, suggestions, cached, error, regenerate };
-};
-
-const categoryColors: Record<string, string> = {
-  roads: "bg-sky-500/10 text-sky-600",
-  water: "bg-blue-500/10 text-blue-600",
-  electricity: "bg-yellow-500/10 text-yellow-600",
-  sanitation: "bg-green-500/10 text-green-600",
-  education: "bg-purple-500/10 text-purple-600",
-  healthcare: "bg-rose-500/10 text-rose-600",
-  pollution: "bg-gray-500/10 text-gray-600",
-  safety: "bg-orange-500/10 text-orange-600",
-  other: "bg-muted text-muted-foreground",
-};
-
-const statusColors: Record<string, string> = {
-  reported: "bg-amber-500/10 text-amber-600",
-  under_review: "bg-blue-500/10 text-blue-600",
-  approved: "bg-emerald-500/10 text-emerald-600",
-  in_progress: "bg-indigo-500/10 text-indigo-600",
-  completed: "bg-teal-500/10 text-teal-600",
-  rejected: "bg-rose-500/10 text-rose-600",
+  return useMemo(
+    () => ({
+      loading,
+      suggestions,
+      cached,
+      regenerate,
+      error,
+    }),
+    [loading, suggestions, cached, regenerate, error],
+  );
 };
 
 const SkeletonLoader: React.FC = () => (
   <div className="space-y-2">
-    {Array.from({ length: 3 }).map((_, i) => (
+    {Array.from({ length: 3 }).map((_, idx) => (
       <div
-        key={i}
-        className="h-3 rounded-full bg-gray-700 animate-pulse"
-        style={{ width: `${75 + Math.random() * 25}%` }}
+        key={idx}
+        className="h-3 rounded-xl bg-gray-700/70 animate-pulse"
+        style={{ width: `${70 + idx * 8}%` }}
       />
     ))}
   </div>
@@ -144,54 +157,78 @@ const AISolutionsSection: React.FC<AISolutionsSectionProps> = ({
   cached,
   error,
   onRegenerate,
-}) => {
-  return (
-    <div className="mt-4 pt-4 border-t border-gray-800">
-      <div className="flex items-center justify-between mb-3 gap-3">
-        <h4 className="text-sm font-semibold text-gray-100 flex items-center gap-2">
-          💡 AI Suggested Solutions
-          {cached && (
-            <Badge className="text-xs bg-blue-500/20 text-blue-300 border-blue-500/40">
-              Cached
-            </Badge>
-          )}
-        </h4>
-        <button
-          onClick={onRegenerate}
-          disabled={loading}
-          className="text-sm text-blue-400 hover:text-blue-300 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-          title="Regenerate AI suggestions"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Regenerate</span>
-        </button>
+}) => (
+  <div className="mt-4 rounded-xl border border-gray-800 bg-gray-900/40 p-4 space-y-3 text-gray-100">
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <h4 className="text-sm font-semibold tracking-wide">💡 AI Suggested Solutions</h4>
+        {cached && (
+          <Badge className="rounded-full border border-blue-500/40 bg-blue-500/20 text-xs text-blue-200">
+            Cached
+          </Badge>
+        )}
       </div>
-
-      {error && (
-        <div className="flex items-start gap-2 text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {!error && loading ? (
-        <SkeletonLoader />
-      ) : !error && suggestions.length > 0 ? (
-        <div className="space-y-2">
-          {suggestions.map((suggestion, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-gray-700 bg-gray-800 p-3 text-gray-200 text-sm leading-relaxed hover:bg-gray-800/80 hover:border-gray-600 transition"
-            >
-              {suggestion.text}
-            </div>
-          ))}
-        </div>
-      ) : !error && suggestions.length === 0 && !loading ? (
-        <p className="text-sm text-gray-400 italic">No AI solutions available.</p>
-      ) : null}
+      <button
+        type="button"
+        onClick={onRegenerate}
+        disabled={loading}
+        className="text-sm font-medium text-blue-400 transition hover:text-blue-300 disabled:cursor-not-allowed disabled:opacity-50"
+        title="Regenerate AI suggestions"
+      >
+        <span className="inline-flex items-center gap-1">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Regenerate
+        </span>
+      </button>
     </div>
-  );
+
+    {error && (
+      <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+        <span>{error}</span>
+      </div>
+    )}
+
+    {!error && loading && <SkeletonLoader />}
+
+    {!error && !loading && suggestions.length === 0 && (
+      <p className="text-sm text-gray-400 italic">No AI solutions available.</p>
+    )}
+
+    {!error && !loading && suggestions.length > 0 && (
+      <div className="space-y-2">
+        {suggestions.map((suggestion, idx) => (
+          <div
+            key={`${suggestion.text}-${idx}`}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-3 text-sm leading-relaxed text-gray-200"
+          >
+            {suggestion.text}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+const categoryColors: Record<string, string> = {
+  roads: "bg-sky-500/10 text-sky-200",
+  water: "bg-blue-500/10 text-blue-200",
+  electricity: "bg-amber-500/10 text-amber-200",
+  sanitation: "bg-green-500/10 text-green-200",
+  education: "bg-purple-500/10 text-purple-200",
+  healthcare: "bg-rose-500/10 text-rose-200",
+  pollution: "bg-gray-500/10 text-gray-300",
+  safety: "bg-orange-500/10 text-orange-200",
+  other: "bg-slate-600/30 text-slate-100",
+};
+
+const statusColors: Record<string, string> = {
+  reported: "bg-amber-500/10 text-amber-200",
+  under_review: "bg-blue-500/10 text-blue-200",
+  approved: "bg-emerald-500/10 text-emerald-200",
+  in_progress: "bg-indigo-500/10 text-indigo-200",
+  completed: "bg-teal-500/10 text-teal-200",
+  rejected: "bg-rose-500/10 text-rose-200",
 };
 
 const ProblemCard: React.FC<ProblemCardProps> = ({
@@ -201,76 +238,66 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
 }) => {
   const { t } = useTranslation();
   const { mutate: vote, isPending: isVoting } = useVote();
-  const { loading: aiLoading, suggestions, cached, error: aiError, regenerate } =
-    useAISolutions(problem.id);
+  const { loading, suggestions, cached, regenerate, error } = useAISolutions(
+    problem.id,
+  );
+
   const currentVote = problem.user_vote ?? null;
   const isUpvoted = currentVote === "upvote";
   const isDownvoted = currentVote === "downvote";
 
-  const handleVote = (voteType: "upvote" | "downvote"): void => {
+  const handleVote = (voteType: "upvote" | "downvote") => {
     vote({ problemId: problem.id, voteType, currentUserId, currentVote });
   };
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-IN", {
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-IN", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-  };
 
   return (
-    <Card className="relative flex h-full flex-col overflow-hidden border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:shadow-[0_20px_90px_-45px_rgba(99,102,241,0.65)]">
-      <div className="pointer-events-none absolute inset-0 opacity-40">
-        <div className="absolute -left-12 top-0 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-secondary/10 blur-3xl" />
-      </div>
-
+    <Card className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-gray-100 shadow-2xl backdrop-blur">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {problem.title}
-            </h3>
-            {/* Moderation feedback for flagged problems */}
+          <div className="flex-1 space-y-2">
+            <h3 className="text-lg font-semibold text-foreground">{problem.title}</h3>
             {(problem as any).is_flagged && (
-              <div className="mb-2 p-2 rounded bg-rose-100 border border-rose-300 text-rose-700 text-xs">
-                <strong>{t('problemCard.flaggedForReview')}</strong>
+              <div className="rounded-md border border-amber-400/50 bg-amber-500/10 p-2 text-xs text-amber-200">
+                <strong>{t("problemCard.flaggedForReview")}</strong>
                 {(problem as any).moderation_reason && (
-                  <span>: {(problem as any).moderation_reason}</span>
-                )}
-                {typeof (problem as any).quality_score === "number" && (
-                  <span> (Score: {(problem as any).quality_score})</span>
+                  <span className="ml-1"> {(problem as any).moderation_reason}</span>
                 )}
               </div>
             )}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 text-xs">
               <Badge
                 variant="secondary"
-                className={
-                  categoryColors[problem.category] || categoryColors.other
-                }
+                className={categoryColors[problem.category] ?? categoryColors.other}
               >
                 {problem.category}
               </Badge>
-              <Badge variant="outline" className={statusColors[problem.status]}>
+              <Badge
+                variant="outline"
+                className={statusColors[problem.status] ?? statusColors.reported}
+              >
                 {problem.status.replace("_", " ")}
               </Badge>
-              {/* show rating summary if present */}
               {typeof (problem as any).rating === "number" && (
-                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 border border-white/5">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                <div className="flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-200">
+                  {Array.from({ length: 5 }).map((_, idx) => (
                     <svg
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < ((problem as any).rating ?? 0)
-                          ? "text-amber-400"
-                          : "text-muted-foreground"
-                      }`}
+                      key={idx}
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        idx < ((problem as any).rating ?? 0)
+                          ? "text-amber-300"
+                          : "text-amber-900",
+                      )}
                       viewBox="0 0 24 24"
                       fill="currentColor"
-                      aria-hidden
+                      aria-hidden="true"
                     >
                       <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.787 1.402 8.172L12 18.896l-7.336 3.87 1.402-8.172L.132 9.21l8.2-1.192z" />
                     </svg>
@@ -280,102 +307,103 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t('problemCard.netVotes')}</div>
-            <div className="text-3xl font-black text-foreground drop-shadow-sm">
+            <div className="text-xs uppercase tracking-wide text-gray-400">
+              {t("problemCard.netVotes")}
+            </div>
+            <div className="text-3xl font-black text-white drop-shadow-sm">
               {problem.votes_count ?? 0}
             </div>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pb-3 flex-grow">
-        <p className="text-muted-foreground text-sm line-clamp-3 mb-3">
-          {problem.description}
-        </p>
+      <CardContent className="flex-grow space-y-4 pb-4">
+        <p className="text-sm text-muted-foreground">{problem.description}</p>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span>
-              {typeof problem.latitude === "number" &&
-              typeof problem.longitude === "number" ? (
-                <>
-                  {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
-                </>
-              ) : (
-                <>—</>
-              )}
-            </span>
+            <MapPin className="h-3.5 w-3.5" />
+            {typeof problem.latitude === "number" &&
+            typeof problem.longitude === "number" ? (
+              <span>
+                {problem.latitude.toFixed(4)}, {problem.longitude.toFixed(4)}
+              </span>
+            ) : (
+              <span>—</span>
+            )}
           </div>
           <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
+            <Calendar className="h-3.5 w-3.5" />
             <span>{formatDate(problem.created_at)}</span>
           </div>
         </div>
 
         <AISolutionsSection
-          loading={aiLoading}
+          loading={loading}
           suggestions={suggestions}
           cached={cached}
-          error={aiError}
+          error={error}
           onRegenerate={regenerate}
         />
       </CardContent>
 
-      <CardFooter className="relative z-10 border-t border-white/10 pt-4">
-        <div className="flex w-full flex-col gap-3">
+      <CardFooter className="border-t border-white/10 pt-4">
+        <div className="w-full space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="ghost"
               size="lg"
-              className={cn(
-                "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
-                isUpvoted &&
-                  "border-emerald-400/60 bg-emerald-500/15 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
-              )}
               onClick={() => handleVote("upvote")}
               disabled={isVoting}
+              className={cn(
+                "rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
+                isUpvoted &&
+                  "border-emerald-400/60 bg-emerald-500/20 text-emerald-100 shadow-[0_0_25px_rgba(16,185,129,0.35)]",
+              )}
             >
               <ThumbsUp className="mr-2 h-4 w-4" />
-              {isUpvoted ? t('problemCard.upvoted') : t('problemCard.upvote')}
+              {isUpvoted ? t("problemCard.upvoted") : t("problemCard.upvote")}
             </Button>
             <Button
               variant="ghost"
               size="lg"
-              className={cn(
-                "flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
-                isDownvoted &&
-                  "border-rose-400/60 bg-rose-500/15 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.35)]"
-              )}
               onClick={() => handleVote("downvote")}
               disabled={isVoting}
+              className={cn(
+                "rounded-2xl border border-white/15 bg-white/5 text-foreground shadow-inner",
+                isDownvoted &&
+                  "border-rose-400/60 bg-rose-500/20 text-rose-100 shadow-[0_0_25px_rgba(244,63,94,0.35)]",
+              )}
             >
               <ThumbsDown className="mr-2 h-4 w-4" />
-              {isDownvoted ? t('problemCard.downvoted') : t('problemCard.downvote')}
+              {isDownvoted ? t("problemCard.downvoted") : t("problemCard.downvote")}
             </Button>
           </div>
+
           <div className="grid grid-cols-2 gap-2">
             <Button
+              asChild
               variant="ghost"
               size="lg"
-              className="flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
-              asChild
+              className="rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
             >
               <Link to={`/problem/${problem.id}`}>
                 <MessageSquare className="mr-2 h-4 w-4" />
                 {problem.comments_count
-                  ? t('problemCard.commentsWithCount', { count: problem.comments_count })
-                  : t('problemCard.comments')}
+                  ? t("problemCard.commentsWithCount", {
+                      count: problem.comments_count,
+                    })
+                  : t("problemCard.comments")}
               </Link>
             </Button>
             <Button
               variant="ghost"
               size="lg"
-              className="flex-1 rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
               onClick={() => onShowOnMap?.(problem)}
+              className="rounded-2xl border border-white/15 bg-white/5 text-foreground transition hover:border-primary/50 hover:bg-primary/10"
             >
               <MapPin className="mr-2 h-4 w-4" />
-              {t('problemCard.map')}
+              {t("problemCard.map")}
             </Button>
           </div>
         </div>
