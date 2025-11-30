@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Upload, X, Loader2, CheckCircle2, Sparkles, Compass, Navigation, Mic, MicOff } from "lucide-react";
 import LocationPicker from "@/components/location/LocationPicker";
 import { motion, AnimatePresence } from "framer-motion";
+import { resolveLanguagePreference } from '@/lib/locale';
 
 interface ReportProblemProps {
   onClose: () => void;
@@ -43,7 +44,8 @@ type FormData = {
 const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
   const BUCKET_NAME = import.meta.env.VITE_PROBLEM_BUCKET ?? "problem-attachments";
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const languagePreference = useMemo(() => resolveLanguagePreference(i18n.language), [i18n.language]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -117,7 +119,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
         setAddressLookupState("loading");
         const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
         const res = await fetch(url, {
-          headers: { "Accept-Language": "en" },
+          headers: { "Accept-Language": languagePreference.acceptLanguage },
         });
         if (!res.ok) throw new Error("Unable to fetch address");
         const data = await res.json();
@@ -141,7 +143,7 @@ const ReportProblem = ({ onClose, onSuccess }: ReportProblemProps) => {
         setAddressLookupState("error");
       }
     },
-    [],
+    [languagePreference.acceptLanguage],
   );
 
   const applyLocation = useCallback(

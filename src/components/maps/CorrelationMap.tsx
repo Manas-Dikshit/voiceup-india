@@ -2,6 +2,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { resolveLanguagePreference } from '@/lib/locale';
 
 // Simple Error Boundary to surface runtime errors inside the map component
 class MapErrorBoundary extends React.Component<any, { hasError: boolean; error?: Error | null }> {
@@ -148,6 +150,8 @@ const InvalidateMapOnFocus = ({ focus }: { focus?: Focus }) => {
 };
 
 const CorrelationMap = ({ focus }: { focus?: Focus }) => {
+  const { i18n } = useTranslation();
+  const languagePreference = React.useMemo(() => resolveLanguagePreference(i18n.language), [i18n.language]);
   const { position: userLocation, error: locationError, loading: locationLoading } = useUserLocation();
 
   // Determine the center to use for queries and initial map view:
@@ -331,7 +335,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
   const map = (null as any);
   // We'll use a useEffect below with useMap inside a small component if needed. Simpler: use a ref to capture the map via react-leaflet's context by rendering a helper component.
 
-  const FocusHandler = ({ focus }: { focus?: Focus }) => {
+  const FocusHandler = ({ focus, acceptLanguage }: { focus?: Focus; acceptLanguage: string }) => {
     const mapInstance = (useMap as any)();
     React.useEffect(() => {
     if (!focus || !mapInstance) return;
@@ -386,7 +390,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
           try {
             const query = encodeURIComponent(`${pincode}, India`);
             const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&postalcode=${encodeURIComponent(pincode)}&limit=1`;
-            const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+            const res = await fetch(url, { headers: { 'Accept-Language': acceptLanguage } });
             const json = await res.json();
               if (Array.isArray(json) && json.length > 0) {
                 const entry = json[0];
@@ -446,7 +450,7 @@ const CorrelationMap = ({ focus }: { focus?: Focus }) => {
           />
 
           {/* Recenter component to change view when focus prop provided */}
-          {focus && <FocusHandler focus={focus} />}
+          {focus && <FocusHandler focus={focus} acceptLanguage={languagePreference.acceptLanguage} />}
           {/* Ensure Leaflet invalidates size when shown or when focus changes */}
           <InvalidateMapOnFocus focus={focus} />
 

@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { getBrowserLanguagePreference, resolveLanguagePreference } from '@/lib/locale';
 
 export interface ReverseGeocodeResult {
   lat: number;
@@ -13,15 +14,23 @@ export interface ReverseGeocodeResult {
 
 export interface UseReverseGeocodeOptions {
   googleApiKey?: string | null;
+  locale?: string | null;
 }
 
 /**
  * Hook for reverse geocoding coordinates to addresses
  * Uses Google Geocoding API with fallback to Nominatim
  */
-export function useReverseGeocode({ googleApiKey }: UseReverseGeocodeOptions = {}) {
+export function useReverseGeocode({ googleApiKey, locale }: UseReverseGeocodeOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const languagePreference = useMemo(() => {
+    if (locale) {
+      return resolveLanguagePreference(locale);
+    }
+    return getBrowserLanguagePreference();
+  }, [locale]);
 
   const reverseGeocode = useCallback(
     async (lat: number, lng: number): Promise<ReverseGeocodeResult | null> => {
@@ -32,7 +41,7 @@ export function useReverseGeocode({ googleApiKey }: UseReverseGeocodeOptions = {
         // Try Google Geocoding REST API first if key is available (no JavaScript API needed)
         if (googleApiKey) {
           try {
-            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleApiKey}`;
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${googleApiKey}&language=${languagePreference.apiLanguage}`;
             const geocodeRes = await fetch(geocodeUrl);
             const geocodeData = await geocodeRes.json();
             
@@ -76,7 +85,7 @@ export function useReverseGeocode({ googleApiKey }: UseReverseGeocodeOptions = {
         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
         const response = await fetch(nominatimUrl, {
           headers: {
-            'Accept-Language': 'en',
+            'Accept-Language': languagePreference.acceptLanguage,
           },
         });
 
@@ -105,7 +114,7 @@ export function useReverseGeocode({ googleApiKey }: UseReverseGeocodeOptions = {
         return null;
       }
     },
-    [googleApiKey]
+    [googleApiKey, languagePreference]
   );
 
   return {

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePlacesAutocomplete } from '@/hooks/usePlacesAutocomplete';
 import { useReverseGeocode } from '@/hooks/useReverseGeocode';
 import stateDistrictsData from '@/data/state_districts.json';
+import { LanguagePreference, resolveLanguagePreference } from '@/lib/locale';
 
 // Use CDN marker assets so react-leaflet works in Vite without asset copying
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -218,7 +219,8 @@ export default function LocationPicker({
   googlePlacesApiKey,
   enableManualPinToggle = true,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const languagePreference = useMemo(() => resolveLanguagePreference(i18n.language), [i18n.language]);
   const [selected, setSelected] = useState<{ lat: number; lng: number } | null>(initial);
   const [map, setMap] = useState<L.Map | null>(null);
   const [stateName, setStateName] = useState(initialAdministrative?.state ?? '');
@@ -256,6 +258,7 @@ export default function LocationPicker({
   // Reverse geocoding hook
   const { reverseGeocode, isLoading: isReverseGeocoding } = useReverseGeocode({
     googleApiKey: resolvedPlacesApiKey,
+    locale: i18n.language,
   });
 
   const districtOptions = useMemo(() => getDistrictsForState(stateName), [stateName]);
@@ -318,14 +321,16 @@ export default function LocationPicker({
             stateName,
             selectedDistrictName ?? undefined,
             resolvedPlacesApiKey,
-            ac.signal
+            ac.signal,
+            languagePreference
           ) : Promise.resolve([]),
           fetchAreaSuggestions(
             query,
             stateName,
             selectedDistrictName ?? undefined,
             null,
-            ac.signal
+            ac.signal,
+            languagePreference
           ),
         ]).then((results) => [
           results[0].status === 'fulfilled' ? results[0].value : [],
@@ -363,7 +368,7 @@ export default function LocationPicker({
       clearTimeout(timeout);
       ac.abort();
     };
-  }, [areaInput, stateName, selectedDistrictName, compact, isGooglePlacesReady, resolvedPlacesApiKey]);
+  }, [areaInput, stateName, selectedDistrictName, compact, isGooglePlacesReady, resolvedPlacesApiKey, languagePreference]);
 
   useEffect(() => {
     if (!selectedDistrictName) {
@@ -406,7 +411,7 @@ export default function LocationPicker({
         const query = `${selectedDistrictName}, ${stateName}, India`;
         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=in&limit=1&q=${encodeURIComponent(query)}`, {
           signal: ac.signal,
-          headers: { 'Accept-Language': 'en' },
+          headers: { 'Accept-Language': languagePreference.acceptLanguage },
         });
         if (!res.ok) return;
         const data = await res.json();
@@ -423,7 +428,7 @@ export default function LocationPicker({
       }
     })();
     return () => ac.abort();
-  }, [stateName, selectedDistrictName, compact, map]);
+  }, [stateName, selectedDistrictName, compact, map, languagePreference]);
 
   const handleSuggestionSelect = async (suggestion: AreaSuggestion) => {
     setManualPinMode(false);
@@ -434,7 +439,7 @@ export default function LocationPicker({
     let lng = suggestion.lng;
     try {
       if ((!lat || !lng) && suggestion.source === 'google' && suggestion.placeId && resolvedPlacesApiKey) {
-        const detailRes = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${suggestion.placeId}&fields=geometry,address_component&key=${resolvedPlacesApiKey}`);
+        const detailRes = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${suggestion.placeId}&fields=geometry,address_component&language=${languagePreference.apiLanguage}&key=${resolvedPlacesApiKey}`);
         const detail = await detailRes.json();
         const location = detail.result?.geometry?.location;
         if (location) {
@@ -449,7 +454,7 @@ export default function LocationPicker({
       }
       if ((!lat || !lng) && suggestion.source === 'nominatim' && suggestion.osmId) {
         const lookupRes = await fetch(`https://nominatim.openstreetmap.org/lookup?format=jsonv2&osm_ids=${suggestion.osmId}`, {
-          headers: { 'Accept-Language': 'en' },
+          headers: { 'Accept-Language': languagePreference.acceptLanguage },
         });
         const lookup = await lookupRes.json();
         const hit = lookup?.[0];
@@ -737,11 +742,12 @@ async function fetchAreaSuggestions(
   districtName: string | undefined,
   googleKey: string | null,
   signal: AbortSignal,
+  languagePreference: LanguagePreference,
 ): Promise<AreaSuggestion[]> {
   // Try Google Places REST API if key is provided
   if (googleKey) {
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&components=country:in&key=${googleKey}`;
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&components=country:in&language=${languagePreference.apiLanguage}&key=${googleKey}`;
       const res = await fetch(url, { signal });
       
       if (!res.ok) {
@@ -788,7 +794,7 @@ async function fetchAreaSuggestions(
     const res = await fetch(nominatimUrl, {
       signal,
       headers: {
-        'Accept-Language': 'en',
+        'Accept-Language': languagePreference.acceptLanguage,
       },
     });
     
