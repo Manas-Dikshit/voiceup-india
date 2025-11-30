@@ -4,132 +4,81 @@
     "reportProblem": "Report a Problem",
     "dashboard": "Dashboard",
     "signIn": "Sign In",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "notifications": "Notifications",
+    "profile": "My Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "themeToggle": "Dark Mode",
+    "aiAssistant": "AI Assistant"
   },
+
   "buttons": {
     "submit": "Submit",
     "cancel": "Cancel",
     "locate": "Locate",
-    "refreshFromPin": "Refresh from pin",
+    "refreshFromPin": "Refresh from Pin",
     "useLocation": "Use This Location",
-    "submitReview": "Submit Review"
+    "submitReview": "Submit Review",
+    "viewDetails": "View Details",
+    "downloadCSV": "Download CSV",
+    "exportPDF": "Export as PDF",
+    "retry": "Retry",
+    "close": "Close"
   },
+
   "forms": {
     "placeholders": {
       "search": "Search for a place or address",
       "pincode": "e.g. 110001",
-      "landmark": "e.g. Near City Mall"
+      "landmark": "e.g. Near City Mall",
+      "description": "Describe your problem or idea...",
+      "comment": "Write your comment..."
     }
   },
-    "locationPicker": {
-      "stateLabel": "State / UT",
-      "districtLabel": "District",
-      "areaLabel": "Area / neighbourhood",
-      "selectState": "Select state",
-      "chooseDistrict": "Choose district",
-      "selectStateFirst": "Select state first",
-      "searchAreaPlaceholder": "Search area, colony, ward, street...",
-      "noDistricts": "No districts available",
-      "noMatches": "No matches found — try another spelling or drop a pin.",
-      "loadError": "Map failed to load: {{error}}",
-      "loadingMap": "Loading map...",
-      "dragOrClick": "Drag the marker or click on the map to pick a location",
-      "manualPinEnabled": "✓ Manual pin mode enabled",
-      "dropPinManual": "Drop a pin manually",
-      "selectModeFirst": "Select a mode to drop the first pin.",
-      "useThisLocation": "Use this location",
-      "confidenceHigh": "high confidence",
-      "confidenceMedium": "medium confidence",
-      "confidenceLow": "low confidence"
-    },
-    "reportProblem": {
-      "dialogTitle": "Report an issue",
-      "dialogDescription": "Your report notifies the right ministry cell instantly. Share specifics for faster turnarounds.",
-      "problemDetailsTitle": "Problem details",
-      "problemDetailsDescription": "Keep it short and actionable. Ministries rely on the first 140 characters for triage.",
-      "selectCategory": "Select category",
-      "latitudeLabel": "Latitude *",
-      "longitudeLabel": "Longitude *",
-      "autoAreaLabel": "Area details (auto)",
-      "detectedArea": "Detected area: {{area}}",
-      "resolvingAddress": "Resolving address…",
-      "resolveAddressFailed": "Couldn't fetch area details. You can still continue.",
-      "manualMapTitle": "Manual map",
-      "manualMapDescription": "Pick a state, district, and area suggestion to lock the pin.",
-      "manualLocationLocked": "Manual location locked",
-      "manualLocationLockedDesc": "Using {{coords}}",
-      "awaitingSelection": "Awaiting selection",
-      "chooseViaDropdown": "Choose via dropdown",
-      "selectedAreaSuggestion": "Selected area suggestion: {{suggestion}}",
-      "manualAreaLabel": "Area details (manual)",
-      "selectStateDistrictToEnable": "Select a state and district to enable manual area notes.",
-      "pincodeLabel": "Pincode *",
-      "pincodePlaceholder": "Enter 6-digit pincode",
-      "areaDetected": "Area • {{area}}",
-      "evidenceTitle": "Evidence & attachments",
-      "evidenceDescription": "Upload a sharp photo/video or a signed document. Max 25 MB.",
-      "uploadClickOrDrag": "Click to upload or drag & drop",
-      "uploadFormats": "PNG, JPG, MP4, PDF up to 25 MB",
-      "submitting": "Submitting...",
-      "titleLabel": "Problem title *",
-      "titlePlaceholder": "E.g. Broken streetlight on main road",
-      "categoryLabel": "Category *",
-      "descriptionLabel": "Description *",
-      "descriptionPlaceholder": "Describe the problem clearly...",
-      "locationTitle": "Location & coverage",
-      "locationDescription": "Pick where the issue exists. Accurate pins help route your report to the correct ward engineer.",
-      "autoLocationTitle": "Auto location",
-      "autoLocationDescription": "Use device GPS and fine-tune the area name before submitting.",
-      "detecting": "Detecting...",
-      "detectLocation": "Detect my location",
-      "locationDetectedTitle": "Location detected ✅",
-      "locationDetectedDesc": "Your current location has been added.",
-      "locationUnavailableTitle": "Location unavailable",
-      "locationUnavailableDesc": "Could not get your location. Please ensure location permissions are granted or enter coordinates manually.",
-      "locationNotSupportedTitle": "Location not supported",
-      "locationNotSupportedDesc": "Your browser doesn't support location access.",
-      "problemReportedTitle": "Problem reported 🎉",
-      "problemReportedDesc": "Your report has been submitted successfully.",
-      "attachmentMissing": "Please attach a photo, video, or document.",
-      "locationRequired": "A precise location is required."
-    },
-  "problem": {
-    "rating": "Rating",
-    "feedbackPlaceholder": "Share details to help the ministry improve...",
-    "noLocation": "No location selected yet."
+
+  "locationPicker": {
+    "stateLabel": "State / UT",
+    "districtLabel": "District",
+    "areaLabel": "Area / Neighbourhood",
+    "selectState": "Select state",
+    "chooseDistrict": "Choose district",
+    "selectStateFirst": "Select state first",
+    "searchAreaPlaceholder": "Search area, colony, ward, street...",
+    "noDistricts": "No districts available",
+    "noMatches": "No matches found — try another spelling or drop a pin.",
+    "loadError": "Map failed to load: {{error}}",
+    "loadingMap": "Loading map...",
+    "dragOrClick": "Drag the marker or click on the map to pick a location",
+    "manualPinEnabled": "✓ Manual pin mode enabled",
+    "dropPinManual": "Drop a pin manually",
+    "useThisLocation": "Use this location",
+    "confidenceHigh": "High confidence",
+    "confidenceMedium": "Medium confidence",
+    "confidenceLow": "Low confidence"
   },
-  "ratingDialog": {
-    "title": "Rate the resolution",
-    "description": "Please rate how well the problem was resolved (1–5 stars).",
-    "optionalFeedback": "Optional feedback",
-    "submitting": "Submitting..."
+
+  "reportProblem": {
+    "dialogTitle": "Report an Issue",
+    "dialogDescription": "Your report notifies the right ministry instantly. Share specifics for faster resolutions.",
+    "problemDetailsTitle": "Problem Details",
+    "selectCategory": "Select category",
+    "latitudeLabel": "Latitude *",
+    "longitudeLabel": "Longitude *",
+    "pincodeLabel": "Pincode *",
+    "titleLabel": "Problem title *",
+    "descriptionLabel": "Description *",
+    "locationTitle": "Location & Coverage",
+    "autoLocationTitle": "Auto Location",
+    "detectLocation": "Detect my location",
+    "locationDetectedTitle": "Location detected ✅",
+    "problemReportedTitle": "Problem Reported 🎉",
+    "problemReportedDesc": "Your report has been submitted successfully.",
+    "attachmentMissing": "Please attach a photo, video, or document.",
+    "locationRequired": "A precise location is required."
   },
-  "dashboard": {
-    "loading": "Loading...",
-    "yourImpact": "Your Impact",
-    "points": "points",
-    "pointsSubtitle": "Points earned by voting, reporting, and commenting.",
-    "badgesEarned": "Badges Earned",
-    "unlockAchievements": "Unlock more achievements by contributing.",
-    "noProblemsYet": "No problems reported yet. Be the first to report one!",
-    "locationError": "Could not get your location. Please enable location services in your browser.",
-    "gettingLocation": "Getting your location...",
-    "noNearbyProblems": "No problems found nearby.",
-    "loadingNearby": "Loading nearby problems...",
-    "activeProblems": "Active Problems",
-    "inYourArea": "In your area",
-    "acrossVoiceUp": "Across VoiceUp",
-    "reportProblem": "Report a Problem",
-    "tabs": {
-      "allProblems": "All Problems",
-      "nearby": "Nearby",
-      "trending": "Trending",
-      "insights": "🗺️ Local Insights"
-    },
-    "signedOutTitle": "Signed out",
-    "signedOutDesc": "You have been signed out successfully."
-  }
-  ,"problemCard": {
+
+  "problemCard": {
     "netVotes": "Net votes",
     "flaggedForReview": "Flagged for review",
     "upvote": "Upvote",
@@ -137,25 +86,168 @@
     "downvote": "Downvote",
     "downvoted": "Downvoted",
     "comments": "Comments",
-    "commentsWithCount": "Comments ({{count}})",
-    "map": "Map"
+    "map": "Map",
+    "solutionSuggested": "Solutions suggested",
+    "viewDiscussion": "View Discussion"
   },
+
+  "dashboard": {
+    "loading": "Loading...",
+    "yourImpact": "Your Impact",
+    "points": "points",
+    "badgesEarned": "Badges Earned",
+    "noProblemsYet": "No problems reported yet. Be the first to report one!",
+    "activeProblems": "Active Problems",
+    "inYourArea": "In your area",
+    "acrossVoiceUp": "Across VoiceUp",
+    "tabs": {
+      "allProblems": "All Problems",
+      "nearby": "Nearby",
+      "trending": "Trending",
+      "insights": "🗺️ Local Insights",
+      "impactTracker": "📊 Impact Tracker"
+    },
+    "impactMetrics": {
+      "resolved": "Resolved",
+      "pending": "Pending",
+      "avgResponseTime": "Avg. Response Time",
+      "engagementScore": "Engagement Score",
+      "topCategory": "Top Performing Category"
+    }
+  },
+
   "ministry": {
     "filters": "Filters",
     "dateRange": "Date Range",
     "categories": "Categories",
-    "selectCategoriesPlaceholder": "Select categories...",
     "city": "City",
-    "filterByCity": "Filter by city...",
-    "topCorrelationPair": "Top Correlation Pair",
-    "highestScore": "Highest Score",
-    "averageCorrelation": "Average Correlation",
-    "na": "N/A",
-    "inCity": "in {{city}}",
-    "peakDataCorrelation": "Peak data correlation",
-    "acrossAllCategories": "Across all categories",
     "exportData": "Export Data",
     "ministryOfficial": "Ministry Official",
-    "adminAccess": "Admin Access"
+    "adminAccess": "Admin Access",
+    "analytics": "Analytics",
+    "topCorrelationPair": "Top Correlation Pair",
+    "averageCorrelation": "Average Correlation",
+    "correlatedIssues": "Correlated Problem Types",
+    "heatmapToggle": "Toggle Heatmap",
+    "impactOverview": "Impact Overview",
+    "resolvedByRegion": "Resolved by Region"
+  },
+
+  "solutions": {
+    "title": "Solutions",
+    "suggestSolution": "Suggest a Solution",
+    "solutionPlaceholder": "Propose a solution for this issue...",
+    "submitSolution": "Submit Solution",
+    "aiSuggestion": "AI-Suggested Similar Problems",
+    "noSolutionsYet": "No solutions yet. Be the first to propose one!"
+  },
+
+  "comments": {
+    "title": "Comments",
+    "addComment": "Add a Comment",
+    "reply": "Reply",
+    "nestedReplies": "Replies",
+    "noComments": "No comments yet. Start the discussion!",
+    "loadMore": "Load more comments"
+  },
+
+  "gamification": {
+    "leaderboard": "Leaderboard",
+    "topContributors": "Top Contributors",
+    "achievements": "Achievements",
+    "earnedBadge": "You earned a new badge!",
+    "activityPoints": "Activity Points"
+  },
+
+  "aiChatbot": {
+    "title": "CiviBot - Your AI Civic Assistant",
+    "intro": "Ask questions about your rights, civic processes, or how to propose better solutions.",
+    "placeholder": "Type your civic question...",
+    "suggestions": {
+      "howToReport": "How do I report a water issue?",
+      "processAfterSubmission": "What happens after I submit a report?",
+      "localAuthorities": "Who manages sanitation in my area?"
+    },
+    "loading": "Thinking...",
+    "noResponse": "I couldn’t find an answer. Please try again."
+  },
+
+  "educationHub": {
+    "title": "Civic Education Hub",
+    "intro": "Learn about your rights, local governance, and how to make a civic impact.",
+    "modules": {
+      "citizenRights": "Citizen Rights & Duties",
+      "municipalProcess": "How Municipalities Work",
+      "lawBasics": "Basics of Indian Civic Law",
+      "sustainableCities": "Sustainable City Planning"
+    },
+    "aiTutorPrompt": "Ask a question about civic laws..."
+  },
+
+  "emergency": {
+    "systemTitle": "Emergency Response System",
+    "broadcastAlert": "Broadcast Alert",
+    "incidentPrioritizer": "Incident Prioritizer",
+    "resourceDispatcher": "Resource Dispatcher",
+    "crisisMap": "Crisis Map",
+    "predictedZones": "Predicted Risk Zones",
+    "noIncidents": "No active incidents",
+    "severityCritical": "Critical",
+    "severityHigh": "High",
+    "severityMedium": "Medium",
+    "severityLow": "Low"
+  },
+
+  "notifications": {
+    "newAlert": "New Emergency Alert",
+    "incidentUpdate": "Incident Updated",
+    "problemResolved": "Your reported problem has been resolved",
+    "newComment": "New comment on your issue",
+    "viewAll": "View All Notifications"
+  },
+
+  "analytics": {
+    "dashboardTitle": "Analytics Dashboard",
+    "incidentStats": "Incident Statistics",
+    "zoneStats": "Risk Zone Statistics",
+    "responseTime": "Average Response Time",
+    "engagementScore": "Engagement Score",
+    "resolvedCount": "Resolved",
+    "pendingCount": "Pending",
+    "export": "Export Analytics"
+  },
+
+  "onboarding": {
+    "welcomeCitizen": "Welcome to VoiceUp India! Report issues, vote, and help improve your community.",
+    "welcomeMinistry": "Welcome, Ministry Official! Monitor, respond, and analyze civic issues in real time.",
+    "getStarted": "Get Started",
+    "howItWorks": "How VoiceUp Works",
+    "citizenGuide": "Citizen Guide",
+    "ministryGuide": "Ministry Guide"
+  },
+
+  "settings": {
+    "title": "App Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service"
+  },
+
+  "accessibility": {
+    "screenReader": "Enable Screen Reader Mode",
+    "textSize": "Text Size",
+    "contrastMode": "High Contrast Mode",
+    "keyboardNav": "Keyboard Navigation Enabled"
+  },
+
+  "errors": {
+    "network": "Network error. Please try again.",
+    "server": "Server error. Please contact support.",
+    "formIncomplete": "Please complete all required fields.",
+    "locationUnavailable": "Location unavailable. Please enable location services.",
+    "noData": "No data available.",
+    "permissionDenied": "Permission denied. Please check your settings."
   }
 }
