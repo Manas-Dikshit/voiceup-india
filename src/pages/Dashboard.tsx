@@ -19,7 +19,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import CorrelationMap from "@/components/maps/CorrelationMap";
 import { Problem } from "@/lib/types";
 import { Input } from "@/components/ui/input";
-import type { ChatbotMetadata, SuggestionPublishResponse } from "@/lib/ai-suggestions";
+//import type { ChatbotMetadata, SuggestionPublishResponse } from "@/lib/ai-suggestions";
 
 // ==================== Types ====================
 
