@@ -7,246 +7,44 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   public: {
     Tables: {
-      alerts: {
-        Row: {
-          id: string;
-          incident_id: string;
-          alert_type: string;
-          message: string;
-          broadcast_status: string;
-          recipients_count: number;
-          sent_at?: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          incident_id: string;
-          alert_type: string;
-          message: string;
-          broadcast_status: string;
-          recipients_count: number;
-          sent_at?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          incident_id?: string;
-          alert_type?: string;
-          message?: string;
-          broadcast_status?: string;
-          recipients_count?: number;
-          sent_at?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      emergency_incidents: {
-        Row: {
-          id: string;
-          type: string;
-          status: string;
-          location: string;
-          description: string;
-          reported_at: string;
-        };
-        Insert: {
-          id?: string;
-          type: string;
-          status: string;
-          location: string;
-          description: string;
-          reported_at?: string;
-        };
-        Update: {
-          id?: string;
-          type?: string;
-          status?: string;
-          location?: string;
-          description?: string;
-          reported_at?: string;
-        };
-        Relationships: [];
-      };
-      resource_deployments: {
-        Row: {
-          id: string;
-          incident_id: string;
-          resource_type: string;
-          quantity: number;
-          status: string;
-          deployed_at: string;
-        };
-        Insert: {
-          id?: string;
-          incident_id: string;
-          resource_type: string;
-          quantity: number;
-          status: string;
-          deployed_at?: string;
-        };
-        Update: {
-          id?: string;
-          incident_id?: string;
-          resource_type?: string;
-          quantity?: number;
-          status?: string;
-          deployed_at?: string;
-        };
-        Relationships: [];
-      };
-      audit_logs: {
-        Row: {
-          action: string
-          created_at: string
-          details: Json | null
-          id: string
-          target_id: string | null
-          target_type: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          target_id?: string | null
-          target_type?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          target_id?: string | null
-          target_type?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       comments: {
         Row: {
+          commentable_id: string
+          commentable_type: Database["public"]["Enums"]["commentable_type"]
           content: string
           created_at: string | null
-          id: number
-          is_deleted: boolean | null
-          parent_id: number | null
-          problem_id: string | null
-          solution_id: string | null
-          updated_at: string | null
+          id: string
+          sentiment: string | null
           user_id: string
         }
         Insert: {
+          commentable_id: string
+          commentable_type: Database["public"]["Enums"]["commentable_type"]
           content: string
           created_at?: string | null
-          id?: number
-          is_deleted?: boolean | null
-          parent_id?: number | null
-          problem_id?: string | null
-          solution_id?: string | null
-          updated_at?: string | null
+          id?: string
+          sentiment?: string | null
           user_id: string
         }
         Update: {
+          commentable_id?: string
+          commentable_type?: Database["public"]["Enums"]["commentable_type"]
           content?: string
           created_at?: string | null
-          id?: number
-          is_deleted?: boolean | null
-          parent_id?: number | null
-          problem_id?: string | null
-          solution_id?: string | null
-          updated_at?: string | null
+          id?: string
+          sentiment?: string | null
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "comments_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comments_problem_id_fkey"
-            columns: ["problem_id"]
-            isOneToOne: false
-            referencedRelation: "problems"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comments_solution_id_fkey"
-            columns: ["solution_id"]
-            isOneToOne: false
-            referencedRelation: "solutions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notifications: {
-        Row: {
-          comment_id: number | null
-          created_at: string | null
-          id: number
-          is_read: boolean | null
-          problem_id: string | null
-          sender_id: string | null
-          type: string
-          user_id: string
-        }
-        Insert: {
-          comment_id?: number | null
-          created_at?: string | null
-          id?: number
-          is_read?: boolean | null
-          problem_id?: string | null
-          sender_id?: string | null
-          type: string
-          user_id: string
-        }
-        Update: {
-          comment_id?: number | null
-          created_at?: string | null
-          id?: number
-          is_read?: boolean | null
-          problem_id?: string | null
-          sender_id?: string | null
-          type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -259,16 +57,12 @@ export type Database = {
           ai_summary: string | null
           ai_tags: string[] | null
           category: Database["public"]["Enums"]["problem_category"]
-          city: string | null
           created_at: string | null
           description: string
           id: string
-          latitude: number | null
-          location: unknown | null
-          longitude: number | null
+          latitude: number
+          longitude: number
           media_url: string | null
-          pincode: string | null
-          region: string | null
           status: Database["public"]["Enums"]["problem_status"] | null
           title: string
           updated_at: string | null
@@ -279,16 +73,12 @@ export type Database = {
           ai_summary?: string | null
           ai_tags?: string[] | null
           category: Database["public"]["Enums"]["problem_category"]
-          city?: string | null
           created_at?: string | null
           description: string
           id?: string
-          latitude: number | null
-          location?: unknown | null
-          longitude: number | null
+          latitude: number
+          longitude: number
           media_url?: string | null
-          pincode?: string | null
-          region?: string | null
           status?: Database["public"]["Enums"]["problem_status"] | null
           title: string
           updated_at?: string | null
@@ -299,16 +89,12 @@ export type Database = {
           ai_summary?: string | null
           ai_tags?: string[] | null
           category?: Database["public"]["Enums"]["problem_category"]
-          city?: string | null
           created_at?: string | null
           description?: string
           id?: string
-          latitude?: number | null
-          location?: unknown | null
-          longitude?: number | null
+          latitude?: number
+          longitude?: number
           media_url?: string | null
-          pincode?: string | null
-          region?: string | null
           status?: Database["public"]["Enums"]["problem_status"] | null
           title?: string
           updated_at?: string | null
@@ -329,7 +115,7 @@ export type Database = {
         Row: {
           badges: string[] | null
           created_at: string | null
-          full_name: string | null
+          full_name: string
           id: string
           latitude: number | null
           longitude: number | null
@@ -340,7 +126,7 @@ export type Database = {
         Insert: {
           badges?: string[] | null
           created_at?: string | null
-          full_name?: string | null
+          full_name: string
           id: string
           latitude?: number | null
           longitude?: number | null
@@ -351,7 +137,7 @@ export type Database = {
         Update: {
           badges?: string[] | null
           created_at?: string | null
-          full_name?: string | null
+          full_name?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -359,15 +145,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       solutions: {
         Row: {
@@ -454,101 +232,10 @@ export type Database = {
       }
     }
     Views: {
-      problem_correlations: {
-        Row: {
-          category_a: string | null
-          category_b: string | null
-          center_point: unknown | null
-          city: string | null
-          co_occurrence: number | null
-          correlation_score: number | null
-          latest_problem_date: string | null
-          region: string | null
-          region_id: string | null
-        }
-        Relationships: []
-      }
-      problem_vote_totals: {
-        Row: {
-          downvotes: number | null
-          last_activity_at: string | null
-          net_votes: number | null
-          problem_id: string | null
-          total_votes: number | null
-          upvotes: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      calculate_problem_correlations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_filtered_correlations: {
-        Args: {
-          start_date?: string
-          end_date?: string
-          cat_filter?: string[]
-          city_filter?: string
-        }
-        Returns: {
-          region_id: string
-          city: string
-          region: string
-          category_a: string
-          category_b: string
-          correlation_score: number
-          co_occurrence: number
-          latest_problem_date: string
-        }[]
-      }
-      get_ministry_dashboard_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_nearby_correlations: {
-        Args: {
-          lat: number
-          lng: number
-          radius: number
-        }
-        Returns: {
-          region_id: string
-          category_a: string
-          category_b: string
-          correlation_score: number
-          co_occurrence: number
-          center_point_wkt: string
-        }[]
-      }
-      nearby_problems: {
-        Args: {
-          lat: number
-          lng: number
-        }
-        Returns: {
-          category: Database["public"]["Enums"]["problem_category"] | null
-          created_at: string | null
-          description: string | null
-          distance_km: number | null
-          id: string | null
-          latitude: number | null
-          longitude: number | null
-          media_url: string | null
-          status: Database["public"]["Enums"]["problem_status"] | null
-          title: string | null
-          user_id: string | null
-          votes_count: number | null
-        }[]
-      }
-      vote_problem: {
-        Args: {
-          p_problem_id: string
-          p_vote_type: Database["public"]["Enums"]["vote_type"]
-        }
-        Returns: number
-      }
+      [_ in never]: never
     }
     Enums: {
       commentable_type: "problem" | "solution"
@@ -570,8 +257,8 @@ export type Database = {
         | "completed"
         | "rejected"
       user_role: "citizen" | "ministry" | "admin"
-      vote_type: "upvote" | "downvote"
       votable_type: "problem" | "solution"
+      vote_type: "upvote" | "downvote"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -579,25 +266,33 @@ export type Database = {
   }
 }
 
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (Database["public"]["Tables"] & Database["public"]["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (Database["public"]["Tables"] &
-        Database["public"]["Views"])
-    ? (Database["public"]["Tables"] &
-        Database["public"]["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -605,20 +300,24 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -626,20 +325,24 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof Database["public"]["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof Database["public"]["Tables"]
-    ? Database["public"]["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -647,27 +350,65 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof Database["public"]["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof Database["public"]["Enums"]
-    ? Database["public"]["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
-// Manually export the enum for direct import
-export const problem_category = {
-    Roads: "roads",
-    Water: "water",
-    Electricity: "electricity",
-    Sanitation: "sanitation",
-    Education: "education",
-    Healthcare: "healthcare",
-    Pollution: "pollution",
-    Safety: "safety",
-    Other: "other"
-} as const;
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      commentable_type: ["problem", "solution"],
+      problem_category: [
+        "roads",
+        "water",
+        "electricity",
+        "sanitation",
+        "education",
+        "healthcare",
+        "pollution",
+        "safety",
+        "other",
+      ],
+      problem_status: [
+        "reported",
+        "under_review",
+        "approved",
+        "in_progress",
+        "completed",
+        "rejected",
+      ],
+      user_role: ["citizen", "ministry", "admin"],
+      votable_type: ["problem", "solution"],
+      vote_type: ["upvote", "downvote"],
+    },
+  },
+} as const
