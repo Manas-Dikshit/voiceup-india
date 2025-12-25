@@ -3,11 +3,21 @@ import { Database } from "@/integrations/supabase/types";
 export type Comment = Database["public"]["Tables"]["comments"]["Row"] & {
   profiles: Pick<Database["public"]["Tables"]["profiles"]["Row"], "full_name" | "role">;
   replies?: Comment[];
+  is_deleted?: boolean;
+  parent_id?: string | null;
 };
 
-export type Notification = Database["public"]["Tables"]["notifications"]["Row"] & {
-  profiles: Pick<Database["public"]["Tables"]["profiles"]["Row"], "full_name">;
-};
+export interface Notification {
+  id: number;
+  user_id: string;
+  sender_id: string | null;
+  problem_id: string | null;
+  comment_id: string | null;
+  type: string;
+  message: string | null;
+  is_read: boolean;
+  created_at: string;
+}
 
 // PostGIS geometry type
 export interface GeometryPoint {
@@ -36,6 +46,7 @@ export interface Problem {
   user_id?: string | null;
   // Moderation fields
   is_flagged?: boolean;
+  is_deleted?: boolean;
   quality_score?: number;
   moderation_reason?: string;
   moderated_at?: string;
@@ -49,3 +60,14 @@ export type Rating = {
   feedback?: string | null;
   created_at: string;
 };
+
+// Impact tracker row type
+export interface ImpactRow {
+  id?: string;
+  category: string;
+  location: string;
+  resolved_count: number;
+  pending_count: number;
+  avg_response_time: number;
+  engagement_score: number;
+}

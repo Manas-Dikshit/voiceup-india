@@ -1,1 +1,37 @@
-project_id = "wfpxknccdypiwpsoyisx"
+project_id = "gkbkqsagrrlscytaxdos"
+
+[functions.chatbot]
+verify_jwt = false
+
+[functions.generate_solutions]
+verify_jwt = false
+
+[functions.graph]
+verify_jwt = false
+
+[functions.merge-similar-problems]
+verify_jwt = true
+
+[functions.moderate-content]
+verify_jwt = true
+
+[functions.process-new-problem]
+verify_jwt = true
+
+[functions.scheduled-moderation-cleanup]
+verify_jwt = true
+
+[functions.update-problem-status]
+verify_jwt = true
+
+[functions.emergency-assign-resources]
+verify_jwt = true
+
+[functions.emergency-detect]
+verify_jwt = true
+
+[functions.emergency-prioritize]
+verify_jwt = true
+
+[functions.emergency-send-alerts]
+verify_jwt = true

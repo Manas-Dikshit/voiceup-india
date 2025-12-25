@@ -1,12 +1,18 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { Globe } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const LANGS = [
-  { code: 'en', label: 'English' },
-  { code: 'hi', label: 'हिन्दी' },
-  { code: 'od', label: 'ଓଡ଼ିଆ' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+  { code: 'od', label: 'ଓଡ଼ିଆ', flag: '🇮🇳' },
 ];
 
 export default function LanguageSwitcher() {
@@ -15,26 +21,45 @@ export default function LanguageSwitcher() {
   const change = async (lng: string) => {
     try {
       await i18n.changeLanguage(lng);
-      // Optional: persist in localStorage handled by i18next-browser-languagedetector's caches config
       // Optional: persist to user profile
       const { data: userData } = await supabase.auth.getUser();
       const user = userData?.user;
       if (user) {
         // Save selected language to profiles table (non-blocking)
-        supabase.from('profiles').update({ language: lng }).eq('id', user.id).then(() => {});
+        // Using type assertion since we just added the column
+        supabase
+          .from('profiles')
+          .update({ language: lng } as any)
+          .eq('id', user.id)
+          .then(() => {});
       }
     } catch (err) {
       console.error('Failed to change language', err);
     }
   };
 
+  const currentLang = LANGS.find(l => l.code === i18n.language) || LANGS[0];
+
   return (
-    <div className="flex items-center">
-      {LANGS.map((l) => (
-        <Button variant="ghost" key={l.code} onClick={() => change(l.code)} className="text-sm">
-          {l.label}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-2">
+          <Globe className="h-4 w-4" />
+          <span className="hidden sm:inline">{currentLang.flag} {currentLang.label}</span>
         </Button>
-      ))}
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {LANGS.map((l) => (
+          <DropdownMenuItem
+            key={l.code}
+            onClick={() => change(l.code)}
+            className={i18n.language === l.code ? 'bg-accent' : ''}
+          >
+            <span className="mr-2">{l.flag}</span>
+            {l.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

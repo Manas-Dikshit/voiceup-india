@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 export type Problem = {
   id: string
   title: string
-  status: "reported" | "under_review" | "approved" | "in_progress" | "Resolved" | "rejected"
+  status: "reported" | "under_review" | "approved" | "in_progress" | "completed" | "rejected"
   category: string
   created_at: string
 }
@@ -25,6 +25,15 @@ export type Problem = {
 // This type will be used to pass the function to open the modal
 export type ProblemTableMeta = {
   openStatusModal: (problem: Problem) => void
+}
+
+const statusVariants: Record<string, string> = {
+  reported: "default",
+  under_review: "secondary",
+  approved: "outline",
+  in_progress: "destructive",
+  completed: "default",
+  rejected: "destructive",
 }
 
 export const columns: ColumnDef<Problem>[] = [
@@ -47,16 +56,9 @@ export const columns: ColumnDef<Problem>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string
-      const variant = {
-        reported: "default",
-        under_review: "secondary",
-        approved: "outline",
-        in_progress: "destructive",
-        completed: "default",
-        rejected: "destructive",
-      }[status] ?? "default"
+      const variant = statusVariants[status] ?? "default"
 
-      return <Badge variant={variant as any}>{status}</Badge>
+      return <Badge variant={variant as any}>{status.replace('_', ' ')}</Badge>
     }
   },
   {

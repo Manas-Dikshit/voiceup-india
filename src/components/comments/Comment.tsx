@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CommentForm } from "./CommentForm";
 import type { Comment as CommentType } from "@/lib/types";
-import { useAuth } from "@/hooks/use-auth"; // Assuming you have a useAuth hook
+import { useAuth } from "@/hooks/use-auth";
 
 interface CommentProps {
   comment: CommentType;
-  onReply: (commentId: number, content: string) => Promise<void>;
-  onUpdate: (commentId: number, content: string) => Promise<void>;
-  onDelete: (commentId: number) => Promise<void>;
+  onReply: (commentId: string, content: string) => Promise<void>;
+  onUpdate: (commentId: string, content: string) => Promise<void>;
+  onDelete: (commentId: string) => Promise<void>;
   level?: number;
 }
 
@@ -19,9 +19,9 @@ export const Comment = ({ comment, onReply, onUpdate, onDelete, level = 0 }: Com
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const canEdit = user?.id === comment.user_id && (new Date().getTime() - new Date(comment.created_at).getTime()) < 10 * 60 * 1000;
+  const canEdit = user?.id === comment.user_id && (new Date().getTime() - new Date(comment.created_at || '').getTime()) < 10 * 60 * 1000;
   const canDelete = user?.id === comment.user_id;
-  const canReply = profile?.role === 'citizen' && level < 2; // Max depth of 3 levels (0, 1, 2)
+  const canReply = profile?.role === 'citizen' && level < 2;
 
   const handleReplySubmit = async (content: string) => {
     await onReply(comment.id, content);
@@ -34,16 +34,16 @@ export const Comment = ({ comment, onReply, onUpdate, onDelete, level = 0 }: Com
   };
 
   return (
-    <div className={`flex flex-col space-y-4 ${level > 0 ? `ml-${level * 6}` : ''}`}>
+    <div className={`flex flex-col space-y-4 ${level > 0 ? 'ml-6' : ''}`}>
       <div className="flex items-start space-x-4">
         <Avatar>
-          <AvatarFallback>{comment.profiles.full_name?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
+          <AvatarFallback>{comment.profiles?.full_name?.charAt(0).toUpperCase() ?? 'U'}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <div className="flex items-center space-x-2">
-            <span className="font-bold">{comment.profiles.full_name}</span>
+            <span className="font-bold">{comment.profiles?.full_name ?? 'Unknown'}</span>
             <span className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+              {comment.created_at && formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
             </span>
           </div>
           {isEditing ? (

@@ -1,18 +1,20 @@
 // lib/impactApi.ts
 import { supabase } from "@/integrations/supabase/client";
+import type { ImpactRow } from "./types";
 
 /**
  * Fetches civic impact data for a single citizen.
  * Filters by their location (if available).
  */
-export async function fetchCitizenImpact(userId: string) {
+export async function fetchCitizenImpact(userId: string): Promise<{ data: ImpactRow[]; error: any }> {
   try {
     const userLocation = await getUserLocation(userId);
 
+    // Query problems directly and aggregate
     const { data, error } = await supabase
-      .from("impact_tracker")
-      .select("*")
-      .eq("location", userLocation || ""); // Use plain string, not Promise
+      .from("problems")
+      .select("category, city, status, votes_count, created_at, updated_at")
+      .eq("is_deleted", false);
 
     if (error) {
       console.error("❌ Error fetching citizen impact:", error.message);
@@ -24,18 +26,10 @@ export async function fetchCitizenImpact(userId: string) {
       return { data: [], error: null };
     }
 
-    // Normalize data
-    const normalized = data.map((row) => ({
-      id: row.id ?? `row-${Math.random().toString(36).slice(2, 8)}`,
-      category: row.category ?? "Unknown",
-      location: row.location ?? "—",
-      resolved_count: Number(row.resolved_count ?? 0),
-      pending_count: Number(row.pending_count ?? 0),
-      avg_response_time: Number(row.avg_response_time ?? 0),
-      engagement_score: Number(row.engagement_score ?? 0),
-    }));
+    // Aggregate data by category and location
+    const aggregated = aggregateImpactData(data, userLocation);
 
-    return { data: normalized, error: null };
+    return { data: aggregated, error: null };
   } catch (e: any) {
     console.error("🚨 Unexpected error in fetchCitizenImpact:", e);
     return { data: [], error: e };
@@ -46,9 +40,12 @@ export async function fetchCitizenImpact(userId: string) {
  * Fetches overall civic impact metrics for ministry users.
  * Returns aggregated or all-impact view data.
  */
-export async function fetchMinistryImpact() {
+export async function fetchMinistryImpact(): Promise<ImpactRow[]> {
   try {
-    const { data, error } = await supabase.from("impact_tracker").select("*");
+    const { data, error } = await supabase
+      .from("problems")
+      .select("category, city, status, votes_count, created_at, updated_at")
+      .eq("is_deleted", false);
 
     if (error) {
       console.error("❌ Error fetching ministry impact:", error.message);
@@ -60,22 +57,78 @@ export async function fetchMinistryImpact() {
       return [];
     }
 
-    // Normalize structure to prevent null issues
-    const normalized = data.map((row) => ({
-      id: row.id ?? `row-${Math.random().toString(36).slice(2, 8)}`,
-      category: row.category ?? "Unknown",
-      location: row.location ?? "—",
-      resolved_count: Number(row.resolved_count ?? 0),
-      pending_count: Number(row.pending_count ?? 0),
-      avg_response_time: Number(row.avg_response_time ?? 0),
-      engagement_score: Number(row.engagement_score ?? 0),
-    }));
-
-    return normalized;
+    // Aggregate all data
+    return aggregateImpactData(data, null);
   } catch (e: any) {
     console.error("🚨 Unexpected error in fetchMinistryImpact:", e);
     return [];
   }
+}
+
+/**
+ * Aggregates raw problem data into impact metrics
+ */
+function aggregateImpactData(
+  data: any[],
+  filterLocation: string | null
+): ImpactRow[] {
+  const grouped: Record<string, {
+    category: string;
+    location: string;
+    resolved: number;
+    pending: number;
+    totalResponseTime: number;
+    completedCount: number;
+    engagement: number;
+  }> = {};
+
+  for (const row of data) {
+    // Apply location filter if provided
+    if (filterLocation && row.city !== filterLocation) continue;
+
+    const key = `${row.category ?? 'other'}-${row.city ?? 'unknown'}`;
+    
+    if (!grouped[key]) {
+      grouped[key] = {
+        category: row.category ?? 'Unknown',
+        location: row.city ?? '—',
+        resolved: 0,
+        pending: 0,
+        totalResponseTime: 0,
+        completedCount: 0,
+        engagement: 0,
+      };
+    }
+
+    const g = grouped[key];
+    
+    if (row.status === 'completed') {
+      g.resolved++;
+      // Calculate response time in hours
+      if (row.created_at && row.updated_at) {
+        const created = new Date(row.created_at).getTime();
+        const updated = new Date(row.updated_at).getTime();
+        g.totalResponseTime += (updated - created) / (1000 * 60 * 60);
+        g.completedCount++;
+      }
+    } else if (['reported', 'under_review', 'approved', 'in_progress'].includes(row.status)) {
+      g.pending++;
+    }
+
+    g.engagement += row.votes_count ?? 0;
+  }
+
+  return Object.entries(grouped).map(([key, g]) => ({
+    id: key,
+    category: g.category,
+    location: g.location,
+    resolved_count: g.resolved,
+    pending_count: g.pending,
+    avg_response_time: g.completedCount > 0 
+      ? Math.round(g.totalResponseTime / g.completedCount) 
+      : 0,
+    engagement_score: g.engagement,
+  }));
 }
 
 /**
@@ -95,7 +148,7 @@ async function getUserLocation(userId: string): Promise<string> {
       return "";
     }
 
-    return data?.city || "";
+    return (data as any)?.city || "";
   } catch (e: any) {
     console.error("🚨 Unexpected error in getUserLocation:", e);
     return "";
