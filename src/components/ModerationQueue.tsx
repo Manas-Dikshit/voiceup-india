@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Card,
@@ -10,11 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Search } from "lucide-react";
+import type { Problem } from "@/lib/types";
 
 const ModerationQueue = () => {
-  const [flaggedProblems, setFlaggedProblems] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [flaggedProblems, setFlaggedProblems] = useState<Problem[]>([]);
+  const [filtered, setFiltered] = useState<Problem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [minScore, setMinScore] = useState(0);
@@ -36,7 +37,7 @@ const ModerationQueue = () => {
         console.error("Fetch error:", error);
         setError("Failed to load moderation queue.");
       } else {
-        setFlaggedProblems(data ?? []);
+        setFlaggedProblems((data as Problem[]) ?? []);
       }
       setLoading(false);
     };
@@ -49,14 +50,15 @@ const ModerationQueue = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "problems" },
         (payload) => {
-          if (payload.new?.is_flagged) {
+          const newData = payload.new as Problem;
+          if (newData?.is_flagged) {
             setFlaggedProblems((prev) => [
-              payload.new,
-              ...prev.filter((p) => p.id !== payload.new.id),
+              newData,
+              ...prev.filter((p) => p.id !== newData.id),
             ]);
           } else {
             setFlaggedProblems((prev) =>
-              prev.filter((p) => p.id !== payload.new.id)
+              prev.filter((p) => p.id !== newData?.id)
             );
           }
         }
@@ -125,25 +127,28 @@ const ModerationQueue = () => {
   };
 
   return (
-    <Card className="mt-8 shadow-md">
-      <CardHeader>
+    <Card className="mt-8 shadow-lg border-2">
+      <CardHeader className="bg-gradient-to-r from-warning/10 to-destructive/10">
         <CardTitle className="flex items-center gap-2">
           🧹 Moderation Queue
           {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        {error && <div className="text-red-500 mb-4">{error}</div>}
+      <CardContent className="pt-6">
+        {error && <div className="text-destructive mb-4 p-3 bg-destructive/10 rounded-lg">{error}</div>}
 
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
-          <Input
-            placeholder="Search title, description, or reason..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-1/2"
-          />
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+          <div className="relative w-full sm:w-1/2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search title, description, or reason..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Min Score</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Score Range</span>
             <Slider
               defaultValue={[0]}
               max={1}
@@ -152,7 +157,8 @@ const ModerationQueue = () => {
               onValueChange={(val) => setMinScore(val[0])}
               className="w-24"
             />
-            <span className="text-sm text-muted-foreground">Max</span>
+            <span className="text-xs">{minScore.toFixed(1)}</span>
+            <span className="text-muted-foreground">-</span>
             <Slider
               defaultValue={[1]}
               max={1}
@@ -161,41 +167,53 @@ const ModerationQueue = () => {
               onValueChange={(val) => setMaxScore(val[0])}
               className="w-24"
             />
+            <span className="text-xs">{maxScore.toFixed(1)}</span>
           </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center items-center py-8">
-            <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+            <Loader2 className="animate-spin h-8 w-8 text-primary" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-muted-foreground">No flagged problems found.</div>
+          <div className="text-center text-muted-foreground py-8">
+            <CheckCircle className="h-12 w-12 mx-auto mb-4 text-success" />
+            <p>No flagged problems found. All clear!</p>
+          </div>
         ) : (
           <div className="space-y-4">
             {filtered.map((problem) => (
               <div key={problem.id} className="border p-4 rounded-xl bg-muted/40 hover:bg-muted/60 transition">
                 <div className="font-bold text-lg mb-1">{problem.title}</div>
-                <div className="text-sm text-muted-foreground mb-2">
+                <div className="text-sm text-muted-foreground mb-2 line-clamp-2">
                   {problem.description}
                 </div>
-                <div className="text-xs mb-2">
-                  <span className="font-semibold">Score:</span> {problem.quality_score?.toFixed(2) ?? "N/A"} |{" "}
-                  <span className="font-semibold">Reason:</span> {problem.moderation_reason ?? "N/A"}
+                <div className="text-xs mb-3 flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-primary/10 rounded-full">
+                    Score: {problem.quality_score?.toFixed(2) ?? "N/A"}
+                  </span>
+                  {problem.moderation_reason && (
+                    <span className="px-2 py-1 bg-warning/10 rounded-full">
+                      {problem.moderation_reason}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleApprove(problem.id)}
+                    className="gap-1"
                   >
-                    ✅ Approve
+                    <CheckCircle className="h-4 w-4" /> Approve
                   </Button>
                   <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => handleRemove(problem.id)}
+                    className="gap-1"
                   >
-                    🗑️ Remove
+                    <XCircle className="h-4 w-4" /> Remove
                   </Button>
                 </div>
               </div>

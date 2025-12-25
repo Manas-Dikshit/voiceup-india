@@ -6,7 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Problem } from "@/pages/ministry/problems/columns";
+
+interface Problem {
+  id: string;
+  title: string;
+  status: string;
+}
 
 interface ChangeStatusModalProps {
   problem: Problem;
@@ -14,11 +19,16 @@ interface ChangeStatusModalProps {
   onSuccess: () => void;
 }
 
-const problemStatuses = ["reported", "under_review", "approved", "in_progress", "completed", "rejected"];
+const problemStatuses = ["reported", "under_review", "approved", "in_progress", "completed", "rejected"] as const;
+type ProblemStatus = typeof problemStatuses[number];
 
 const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalProps) => {
   const { toast } = useToast();
-  const [newStatus, setNewStatus] = useState(problem.status);
+  const [newStatus, setNewStatus] = useState<ProblemStatus>(
+    problemStatuses.includes(problem.status as ProblemStatus) 
+      ? problem.status as ProblemStatus 
+      : "reported"
+  );
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -38,10 +48,15 @@ const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalPro
       // Add to audit log
       try {
         await supabase.from('audit_logs').insert({
-          actor_id: session.user.id,
-          action_type: 'status_change',
+          user_id: session.user.id,
+          action: 'status_change',
+          target_type: 'problem',
           target_id: problem.id,
-          details: `Status changed from ${problem.status} to ${newStatus}. Comment: ${comment}`,
+          details: { 
+            old_status: problem.status, 
+            new_status: newStatus, 
+            comment: comment 
+          },
         });
       } catch (e) {
         console.error('audit log error', e);
@@ -59,6 +74,7 @@ const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalPro
             user_id: problemData.user_id,
             message: `The status of your reported problem "${problem.title}" has been updated to ${newStatus}.`,
             type: 'status_update',
+            problem_id: problem.id,
           });
         }
       } catch (e) {
@@ -67,7 +83,7 @@ const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalPro
 
       toast({
         title: 'Status Updated',
-        description: `Problem status has been changed to ${newStatus}.`,
+        description: `Problem status has been changed to ${newStatus.replace('_', ' ')}.`,
       });
       onSuccess();
     } catch (error: any) {
@@ -91,7 +107,7 @@ const ChangeStatusModal = ({ problem, onClose, onSuccess }: ChangeStatusModalPro
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="status">New Status</Label>
-            <Select value={newStatus} onValueChange={setNewStatus}>
+            <Select value={newStatus} onValueChange={(value) => setNewStatus(value as ProblemStatus)}>
               <SelectTrigger id="status">
                 <SelectValue placeholder="Select a status" />
               </SelectTrigger>

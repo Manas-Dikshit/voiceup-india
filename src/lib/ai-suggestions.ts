@@ -1,73 +1,82 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// AI Suggestion Types for the civic engagement platform
 
-// CORS headers for browser requests
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+export interface AISolutionSuggestion {
+  title: string;
+  description: string;
+  impact: string;
+  nextStep: string;
+  priority?: 'high' | 'medium' | 'low';
+}
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+export interface GenerateSolutionsResult {
+  suggestions: AISolutionSuggestion[];
+  model: string;
+  cached: boolean;
+  problemId: string;
+}
+
+export interface ChatbotMetadata {
+  type: 'suggestion' | 'info' | 'error';
+  data: {
+    suggestions?: AISolutionSuggestion[];
+    problemId?: string;
+    model?: string;
+    cached?: boolean;
+  };
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+// Helper function to call the chatbot edge function
+export async function sendChatMessage(
+  messages: ChatMessage[],
+  supabaseUrl: string,
+  anonKey: string
+): Promise<{ text: string; metadata?: ChatbotMetadata | null }> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/chatbot`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to send message: ${errorText}`);
   }
 
-  try {
-    const { problemId } = await req.json();
+  return response.json();
+}
 
-    if (!problemId) {
-      return new Response(
-        JSON.stringify({ error: "problemId is required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+// Helper function to generate AI solutions for a problem
+export async function generateAISolutions(
+  problemId: string,
+  problemTitle: string,
+  problemDescription: string,
+  supabaseUrl: string,
+  anonKey: string
+): Promise<GenerateSolutionsResult> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate_solutions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ 
+      problemId,
+      title: problemTitle,
+      description: problemDescription
+    }),
+  });
 
-    const authHeader = req.headers.get("Authorization");
-    
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authorization header is required" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const res = await fetch(
-      "https://wfpxknccdypiwpsoyisx.supabase.co/functions/v1/rapid-action",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: authHeader,
-        },
-        body: JSON.stringify({
-          problemId: problemId,
-        }),
-      }
-    );
-
-    const data = await res.json();
-    console.log("AI suggestions =>", data);
-
-    return new Response(JSON.stringify(data), {
-      status: res.status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-    console.error("Error:", errorMessage);
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+  if (!response.ok) {
+    throw new Error('Failed to generate solutions');
   }
-});
+
+  return response.json();
+}

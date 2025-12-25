@@ -447,6 +447,7 @@ export type Database = {
           avg_response_time: number | null
           category: Database["public"]["Enums"]["problem_category"] | null
           engagement_score: number | null
+          id: string | null
           location: string | null
           pending_count: number | null
           resolved_count: number | null

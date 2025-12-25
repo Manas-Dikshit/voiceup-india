@@ -13,8 +13,21 @@ const fetchNotifications = async (userId: string): Promise<Notification[]> => {
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
+  
   if (error) throw error;
-  return data;
+  
+  // Map the data to match the Notification type
+  return (data || []).map(item => ({
+    id: item.id,
+    user_id: item.user_id,
+    sender_id: item.sender_id,
+    problem_id: item.problem_id,
+    comment_id: item.comment_id,
+    type: item.type,
+    message: item.message,
+    is_read: item.is_read ?? false,
+    created_at: item.created_at,
+  }));
 };
 
 export const NotificationBell = () => {
@@ -56,10 +69,14 @@ export const NotificationBell = () => {
     <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
-          {unreadCount > 0 ? <BellRing className="h-5 w-5 text-primary" /> : <Bell className="h-5 w-5" />}
+          {unreadCount > 0 ? (
+            <BellRing className="h-5 w-5 text-primary animate-pulse" />
+          ) : (
+            <Bell className="h-5 w-5" />
+          )}
           {unreadCount > 0 && (
-            <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground">
-              {unreadCount}
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground">
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </Button>
