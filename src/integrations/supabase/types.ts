@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           commentable_id: string
@@ -52,17 +90,127 @@ export type Database = {
           },
         ]
       }
+      moderation_audit: {
+        Row: {
+          action: string
+          id: string
+          moderated_at: string
+          moderator_id: string | null
+          reason: string | null
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          id?: string
+          moderated_at?: string
+          moderator_id?: string | null
+          reason?: string | null
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          id?: string
+          moderated_at?: string
+          moderator_id?: string | null
+          reason?: string | null
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_audit_moderator_id_fkey"
+            columns: ["moderator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          id: number
+          is_read: boolean | null
+          message: string | null
+          problem_id: string | null
+          sender_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          id?: number
+          is_read?: boolean | null
+          message?: string | null
+          problem_id?: string | null
+          sender_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          id?: number
+          is_read?: boolean | null
+          message?: string | null
+          problem_id?: string | null
+          sender_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       problems: {
         Row: {
           ai_summary: string | null
           ai_tags: string[] | null
           category: Database["public"]["Enums"]["problem_category"]
+          city: string | null
           created_at: string | null
           description: string
           id: string
+          is_deleted: boolean | null
+          is_flagged: boolean | null
           latitude: number
           longitude: number
           media_url: string | null
+          moderated_at: string | null
+          moderation_reason: string | null
+          pincode: string | null
+          quality_score: number | null
           status: Database["public"]["Enums"]["problem_status"] | null
           title: string
           updated_at: string | null
@@ -73,12 +221,19 @@ export type Database = {
           ai_summary?: string | null
           ai_tags?: string[] | null
           category: Database["public"]["Enums"]["problem_category"]
+          city?: string | null
           created_at?: string | null
           description: string
           id?: string
+          is_deleted?: boolean | null
+          is_flagged?: boolean | null
           latitude: number
           longitude: number
           media_url?: string | null
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          pincode?: string | null
+          quality_score?: number | null
           status?: Database["public"]["Enums"]["problem_status"] | null
           title: string
           updated_at?: string | null
@@ -89,12 +244,19 @@ export type Database = {
           ai_summary?: string | null
           ai_tags?: string[] | null
           category?: Database["public"]["Enums"]["problem_category"]
+          city?: string | null
           created_at?: string | null
           description?: string
           id?: string
+          is_deleted?: boolean | null
+          is_flagged?: boolean | null
           latitude?: number
           longitude?: number
           media_url?: string | null
+          moderated_at?: string | null
+          moderation_reason?: string | null
+          pincode?: string | null
+          quality_score?: number | null
           status?: Database["public"]["Enums"]["problem_status"] | null
           title?: string
           updated_at?: string | null
@@ -114,9 +276,11 @@ export type Database = {
       profiles: {
         Row: {
           badges: string[] | null
+          city: string | null
           created_at: string | null
           full_name: string
           id: string
+          language: string | null
           latitude: number | null
           longitude: number | null
           points: number | null
@@ -125,9 +289,11 @@ export type Database = {
         }
         Insert: {
           badges?: string[] | null
+          city?: string | null
           created_at?: string | null
           full_name: string
           id: string
+          language?: string | null
           latitude?: number | null
           longitude?: number | null
           points?: number | null
@@ -136,9 +302,11 @@ export type Database = {
         }
         Update: {
           badges?: string[] | null
+          city?: string | null
           created_at?: string | null
           full_name?: string
           id?: string
+          language?: string | null
           latitude?: number | null
           longitude?: number | null
           points?: number | null
@@ -146,6 +314,48 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      ratings: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          id: string
+          problem_id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          problem_id: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          problem_id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ratings_problem_id_fkey"
+            columns: ["problem_id"]
+            isOneToOne: false
+            referencedRelation: "problems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ratings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       solutions: {
         Row: {
@@ -232,7 +442,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      impact_tracker: {
+        Row: {
+          avg_response_time: number | null
+          category: Database["public"]["Enums"]["problem_category"] | null
+          engagement_score: number | null
+          location: string | null
+          pending_count: number | null
+          resolved_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
